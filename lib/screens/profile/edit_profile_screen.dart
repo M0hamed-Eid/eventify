@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../models/user_profile.dart';
-
 class EditProfileScreen extends StatefulWidget {
   final UserProfile user;
 
   const EditProfileScreen({super.key, required this.user});
 
   @override
-  _EditProfileScreenState createState() => _EditProfileScreenState();
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
@@ -18,32 +17,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.user.name);
+    _nameController = TextEditingController(text: widget.user.displayName);
     _emailController = TextEditingController(text: widget.user.email);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-      ),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-              ),
+              decoration: const InputDecoration(labelText: 'Name'),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-              ),
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -56,8 +49,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     // Implement save changes logic
+    Navigator.pop(context, true);
   }
 
   @override

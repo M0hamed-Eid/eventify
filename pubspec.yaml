@@ -45,6 +45,7 @@ dependencies:
   flutter_local_notifications:
   share_plus:
   timezone:
+  firebase_storage:
 
 dev_dependencies:
   flutter_test:

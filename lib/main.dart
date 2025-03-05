@@ -1,7 +1,9 @@
 import 'package:eventify/screens/calendar/event_calendar_screen.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:eventify/services/service_initializer.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'config/theme.dart';
+import 'providers/database_provider.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/profile/profile_screen.dart';
 
@@ -9,7 +11,7 @@ import 'screens/notifications/notifications_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await ServiceInitializer.initializeServices();
   runApp(const MyApp());
 }
 
@@ -18,12 +20,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MultiProvider(
+        providers: [
+        ChangeNotifierProvider(create: (_) => DatabaseProvider()),
+    ],
+    child: MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Events App',
       theme: AppTheme.theme,
       home: const MainScreen(),
-    );
+    ));
   }
 }
 

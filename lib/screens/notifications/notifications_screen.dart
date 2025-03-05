@@ -1,5 +1,11 @@
-// lib/screens/notifications/notifications_screen.dart
 import 'package:flutter/material.dart';
+
+import '../../models/notification_item.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
+import '../events/event_details_screen.dart';
+import '../settings/notification_settings_screen.dart';
+
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -9,49 +15,33 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      title: 'New Event: Stay Safe Online',
-      message: 'A new event has been added that matches your interests.',
-      dateTime: DateTime.now().subtract(const Duration(hours: 1)),
-      type: NotificationType.newEvent,
-      isRead: false,
-    ),
-    NotificationItem(
-      title: 'Event Reminder',
-      message: 'Your registered event "English Conversation Club" starts in 1 hour.',
-      dateTime: DateTime.now().subtract(const Duration(hours: 2)),
-      type: NotificationType.reminder,
-      isRead: true,
-    ),
-    NotificationItem(
-      title: 'Registration Confirmed',
-      message: 'Your registration for "Future Focus" has been confirmed.',
-      dateTime: DateTime.now().subtract(const Duration(days: 1)),
-      type: NotificationType.confirmation,
-      isRead: true,
-    ),
-    // Add more notifications as needed
-  ];
+  final DatabaseService _databaseService = DatabaseService();
+  final AuthService _authService = AuthService();
+  bool _isLoading = true;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigate to notification settings
-              _navigateToNotificationSettings();
-            },
-          ),
-        ],
+  void initState() {
+    super.initState();
+    _markAllAsRead();
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId != null) {
+        await _databaseService.markAllNotificationsAsRead(userId);
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error marking notifications as read: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
-      body: _notifications.isEmpty
-          ? _buildEmptyState()
-          : _buildNotificationsList(),
     );
   }
 
@@ -78,15 +68,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationsList() {
-    return ListView.builder(
-      itemCount: _notifications.length,
-      itemBuilder: (context, index) {
-        final notification = _notifications[index];
-        return _buildNotificationCard(notification);
-      },
-    );
-  }
+
 
   Widget _buildNotificationCard(NotificationItem notification) {
     return Card(
@@ -148,6 +130,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  String _formatDateTime(DateTime dateTime) {
+    // Customize this based on your needs
+    final difference = DateTime.now().difference(dateTime);
+    if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
   Color _getNotificationColor(NotificationType type) {
     switch (type) {
       case NotificationType.newEvent:
@@ -170,66 +165,104 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    // Customize this based on your needs
-    final difference = DateTime.now().difference(dateTime);
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _navigateToNotificationSettings(context),
+          ),
+        ],
+      ),
+      body: StreamBuilder<List<NotificationItem>>(
+        stream: _databaseService.getUserNotifications(_authService.currentUser?.uid ?? ''),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading notifications: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final notifications = snapshot.data ?? [];
+
+          if (notifications.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              // Refresh will happen automatically with StreamBuilder
+            },
+            child: ListView.builder(
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notification = notifications[index];
+                return _buildNotificationCard(notification);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ... (keep your existing helper methods)
+
+  Future<void> _toggleNotificationRead(NotificationItem notification) async {
+    try {
+      await _databaseService.toggleNotificationRead(notification.id);
+    } catch (e) {
+      _showErrorSnackBar('Error updating notification: $e');
     }
   }
 
-  void _toggleNotificationRead(NotificationItem notification) {
-    setState(() {
-      notification.isRead = !notification.isRead;
-    });
-  }
-
-  void _deleteNotification(NotificationItem notification) {
-    setState(() {
-      _notifications.remove(notification);
-    });
-  }
-
-  void _handleNotificationTap(NotificationItem notification) {
-    // Mark as read when tapped
-    if (!notification.isRead) {
-      setState(() {
-        notification.isRead = true;
-      });
+  Future<void> _deleteNotification(NotificationItem notification) async {
+    try {
+      await _databaseService.deleteNotification(notification.id);
+    } catch (e) {
+      _showErrorSnackBar('Error deleting notification: $e');
     }
-    // Navigate based on notification type
-    // Implement navigation logic here
   }
 
-  void _navigateToNotificationSettings() {
-    // Implement navigation to settings
+  Future<void> _handleNotificationTap(NotificationItem notification) async {
+    try {
+      if (!notification.isRead) {
+        await _databaseService.markNotificationAsRead(notification.id);
+      }
+
+      if (notification.eventId != null) {
+        final event = await _databaseService.getEvent(notification.eventId!);
+        if (event != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: event),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error handling notification: $e');
+    }
   }
-}
 
-enum NotificationType {
-  newEvent,
-  reminder,
-  confirmation,
-}
-
-class NotificationItem {
-  final String title;
-  final String message;
-  final DateTime dateTime;
-  final NotificationType type;
-  bool isRead;
-
-  NotificationItem({
-    required this.title,
-    required this.message,
-    required this.dateTime,
-    required this.type,
-    required this.isRead,
-  });
+  void _navigateToNotificationSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationSettingsScreen(),
+      ),
+    );
+  }
 }

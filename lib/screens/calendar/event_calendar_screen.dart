@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-
 import '../../models/event.dart';
+import '../../services/database_service.dart';
 
 class EventCalendarScreen extends StatefulWidget {
   const EventCalendarScreen({super.key});
@@ -11,40 +13,63 @@ class EventCalendarScreen extends StatefulWidget {
 }
 
 class _EventCalendarScreenState extends State<EventCalendarScreen> {
+
   late final ValueNotifier<List<Event>> _selectedEvents;
-  final CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  bool _isCalendarView = true; // Toggle between calendar and list view
+  bool _isCalendarView = true;
+  bool _isLoading = true;
+  List<Event> allEvents = [];
+  Map<DateTime, List<Event>> _events = {};
+  final DatabaseService _databaseService = DatabaseService();
+  StreamSubscription<List<Event>>? _eventsSubscription;
 
-  // Sample events - Replace with your actual events data
-  final List<Event> allEvents = [
-    Event(
-      id: '1',
-      title: 'Stay Safe Online',
-      description: 'Learn about online safety and security',
-      dateTime: DateTime.now(),
-      location: 'Online via Zoom',
-      isOnline: true,
-      isAccMembersOnly: false,
-      timeRange: '1:00 - 2:30 p.m.',
-      registrationLink: 'bit.ly/MediaLit25', guidelines: [],
-    ),
-    Event(
-      id: '2',
-      title: 'English Conversation Club',
-      description: 'Famous People from the American South',
-      dateTime: DateTime.now().add(const Duration(days: 1)),
-      location: 'ACC',
-      isOnline: false,
-      isAccMembersOnly: true,
-      timeRange: '2:00 - 3:00 p.m.', guidelines: [],
-    ),
-    // Add more events...
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _focusedDay;
+    _selectedEvents = ValueNotifier([]);
+    _initializeEvents();
+    _setupEventsListener();
+  }
 
-  // Convert list of events to map for calendar
-  late final Map<DateTime, List<Event>> _events = _groupEventsByDay();
+  Future<void> _initializeEvents() async {
+    setState(() => _isLoading = true);
+    try {
+      final List<Event> fetchedEvents = await _databaseService.getEvents();
+      if (mounted) {
+        setState(() {
+          allEvents = fetchedEvents;
+          _events = _groupEventsByDay();
+          _selectedEvents.value = _getEventsForDay(_selectedDay!);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar('Error loading events: $e');
+      }
+    }
+  }
+
+  void _setupEventsListener() {
+    _eventsSubscription = _databaseService.getEventsStream().listen(
+          (events) {
+        if (mounted) {
+          setState(() {
+            allEvents = events;
+            _events = _groupEventsByDay();
+            _selectedEvents.value = _getEventsForDay(_selectedDay!);
+          });
+        }
+      },
+      onError: (error) {
+        _showErrorSnackBar('Error updating events: $error');
+      },
+    );
+  }
 
   Map<DateTime, List<Event>> _groupEventsByDay() {
     Map<DateTime, List<Event>> eventsByDay = {};
@@ -60,15 +85,19 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
     return eventsByDay;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedDay = _focusedDay;
-    _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _eventsSubscription?.cancel();
     _selectedEvents.dispose();
     super.dispose();
   }
@@ -83,7 +112,6 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
       appBar: AppBar(
         title: const Text('Events Calendar'),
         actions: [
-          // Toggle between calendar and list view
           IconButton(
             icon: Icon(_isCalendarView ? Icons.list : Icons.calendar_today),
             onPressed: () {
@@ -94,20 +122,25 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_isCalendarView) _buildCalendarView() else _buildListViewHeader(),
-          Expanded(
-            child: _isCalendarView
-                ? _buildSelectedDayEvents()
-                : _buildCompleteEventsList(),
-          ),
-        ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: _initializeEvents,
+        child: Column(
+          children: [
+            if (_isCalendarView) _buildCalendar() else _buildHeader(),
+            Expanded(
+              child: _isCalendarView
+                  ? _buildDayEvents()
+                  : _buildAllEvents(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCalendarView() {
+  Widget _buildCalendar() {
     return TableCalendar<Event>(
       firstDay: DateTime.now().subtract(const Duration(days: 365)),
       lastDay: DateTime.now().add(const Duration(days: 365)),
@@ -139,18 +172,14 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
         if (!isSameDay(_selectedDay, selectedDay)) {
           setState(() {
             _selectedDay = selectedDay;
-            _focusedDay = focusedDay;
             _selectedEvents.value = _getEventsForDay(selectedDay);
           });
         }
       },
-      onPageChanged: (focusedDay) {
-        _focusedDay = focusedDay;
-      },
     );
   }
 
-  Widget _buildListViewHeader() {
+  Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
       child: const Row(
@@ -167,14 +196,12 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
     );
   }
 
-  Widget _buildSelectedDayEvents() {
+  Widget _buildDayEvents() {
     return ValueListenableBuilder<List<Event>>(
       valueListenable: _selectedEvents,
       builder: (context, events, _) {
         return events.isEmpty
-            ? const Center(
-          child: Text('No events for this day'),
-        )
+            ? const Center(child: Text('No events for this day'))
             : ListView.builder(
           itemCount: events.length,
           itemBuilder: (context, index) {
@@ -185,8 +212,7 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
     );
   }
 
-  Widget _buildCompleteEventsList() {
-    // Sort events by date
+  Widget _buildAllEvents() {
     final sortedEvents = List<Event>.from(allEvents)
       ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
@@ -194,8 +220,6 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
       itemCount: sortedEvents.length,
       itemBuilder: (context, index) {
         final event = sortedEvents[index];
-
-        // Add date header if it's the first event or if the date changed
         final bool showHeader = index == 0 ||
             !isSameDay(sortedEvents[index - 1].dateTime, event.dateTime);
 
@@ -221,7 +245,6 @@ class _EventCalendarScreenState extends State<EventCalendarScreen> {
   }
 
   String _formatDate(DateTime date) {
-    // Customize this based on your needs
     return '${date.day}/${date.month}/${date.year}';
   }
 
