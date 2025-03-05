@@ -292,20 +292,49 @@ class _AddEventScreenState extends State<AddEventScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _presenterController = TextEditingController();
+  final _presenterTitleController = TextEditingController();
+  final _meetingIdController = TextEditingController();
+  final _passcodeController = TextEditingController();
+  final _locationController = TextEditingController();
+  final List<String> _guidelines = [];
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
   String _selectedCategory = '';
+  String? _selectedSeries;
   bool _isOnline = false;
   bool _isAccMembersOnly = false;
+
+  final List<String> _categories = [
+    'Education',
+    'Career Development',
+    'Language Learning',
+    'Cultural Exchange',
+    'Workshop',
+  ];
+
+  final List<String> _series = [
+    'Future Focus',
+    'English Conversation Club',
+    'Study in the U.S.',
+    'None',
+  ];
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _presenterController.dispose();
+    _presenterTitleController.dispose();
+    _meetingIdController.dispose();
+    _passcodeController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -320,66 +349,71 @@ class _AddEventScreenState extends State<AddEventScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Basic Information Section
+              _buildSectionHeader('Basic Information'),
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Event Title',
+                  border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter event title';
-                  }
-                  return null;
-                },
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter event title' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Event Description',
+                  border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter event description';
-                  }
-                  return null;
+                validator: (value) => value?.isEmpty ?? true ? 'Please enter event description' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Category and Series Selection
+              _buildSectionHeader('Event Type'),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                value: _selectedCategory.isEmpty ? null : _selectedCategory,
+                items: _categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategory = value ?? '';
+                  });
+                },
+                validator: (value) => value == null ? 'Please select a category' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Series (Optional)',
+                  border: OutlineInputBorder(),
+                ),
+                value: _selectedSeries,
+                items: _series.map((series) {
+                  return DropdownMenuItem(
+                    value: series,
+                    child: Text(series),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSeries = value;
+                  });
                 },
               ),
               const SizedBox(height: 16),
-              ListTile(
-                title: const Text('Date'),
-                subtitle: Text(_selectedDate == null
-                    ? 'Select date'
-                    : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: _selectDate,
-              ),
-              ListTile(
-                title: const Text('Time'),
-                subtitle: Text(_selectedTime == null
-                    ? 'Select time'
-                    : '${_selectedTime!.format(context)}'),
-                trailing: const Icon(Icons.access_time),
-                onTap: _selectTime,
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                title: const Text('End Date'),
-                subtitle: Text(_selectedEndDate == null
-                    ? 'Select end date'
-                    : '${_selectedEndDate!.day}/${_selectedEndDate!.month}/${_selectedEndDate!.year}'),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: _selectEndDate,
-              ),
-              ListTile(
-                title: const Text('End Time'),
-                subtitle: Text(_selectedEndTime == null
-                    ? 'Select end time'
-                    : '${_selectedEndTime!.format(context)}'),
-                trailing: const Icon(Icons.access_time),
-                onTap: _selectEndTime,
-              ),
+              // Location and Access Section
+              _buildSectionHeader('Location and Access'),
               SwitchListTile(
                 title: const Text('Online Event'),
                 value: _isOnline,
@@ -389,6 +423,31 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   });
                 },
               ),
+              if (_isOnline) ...[
+                TextFormField(
+                  controller: _meetingIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'Meeting ID',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passcodeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Passcode',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ] else
+                TextFormField(
+                  controller: _locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('ACC Members Only'),
                 value: _isAccMembersOnly,
@@ -398,11 +457,39 @@ class _AddEventScreenState extends State<AddEventScreen> {
                   });
                 },
               ),
+
+              // Presenter Information
+              _buildSectionHeader('Presenter Information (Optional)'),
+              TextFormField(
+                controller: _presenterController,
+                decoration: const InputDecoration(
+                  labelText: 'Presenter Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _presenterTitleController,
+                decoration: const InputDecoration(
+                  labelText: 'Presenter Title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Guidelines Section
+              _buildSectionHeader('Guidelines'),
+              _buildGuidelinesList(),
               const SizedBox(height: 24),
+
+              // Submit Button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                   child: const Text('Create Event'),
                 ),
               ),
@@ -410,6 +497,56 @@ class _AddEventScreenState extends State<AddEventScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+  Widget _buildGuidelinesList() {
+    return Column(
+      children: [
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _guidelines.length,
+          itemBuilder: (context, index) {
+            return ListTile(
+              title: Text(_guidelines[index]),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () {
+                  setState(() {
+                    _guidelines.removeAt(index);
+                  });
+                },
+              ),
+            );
+          },
+        ),
+        TextFormField(
+          decoration: const InputDecoration(
+            labelText: 'Add Guideline',
+            border: OutlineInputBorder(),
+          ),
+          onFieldSubmitted: (value) {
+            if (value.isNotEmpty) {
+              setState(() {
+                _guidelines.add(value);
+              });
+            }
+          },
+        ),
+      ],
     );
   }
 
@@ -426,6 +563,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       });
     }
   }
+
 
   Future<void> _selectEndDate() async {
     final DateTime? picked = await showDatePicker(
@@ -482,31 +620,45 @@ class _AddEventScreenState extends State<AddEventScreen> {
             _selectedTime!.hour,
             _selectedTime!.minute,
           ),
-          location: _isOnline ? 'Online via Zoom' : 'ACC Location',
+          location: _isOnline
+              ? 'Online via Zoom'
+              : _locationController.text.isEmpty
+              ? 'ACC Location'
+              : _locationController.text,
           isOnline: _isOnline,
           isAccMembersOnly: _isAccMembersOnly,
-          timeRange:
-          '${_selectedTime!.format(context)} - ${_selectedTime!.replacing(hour: _selectedTime!.hour + 2).format(context)}', category: _selectedCategory,
+          timeRange: '${_selectedTime!.format(context)} - ${_selectedEndTime?.format(context) ?? _selectedTime!.replacing(hour: _selectedTime!.hour + 2).format(context)}',
+          category: _selectedCategory,
+          guidelines: _guidelines,
+          presenter: _presenterController.text.isEmpty ? null : _presenterController.text,
+          presenterTitle: _presenterTitleController.text.isEmpty ? null : _presenterTitleController.text,
+          meetingId: _isOnline ? _meetingIdController.text : null,
+          passcode: _isOnline ? _passcodeController.text : null,
+          series: _selectedSeries == 'None' ? null : _selectedSeries,
         );
 
         await Provider.of<DatabaseProvider>(context, listen: false)
             .database
             .createEvent(event);
 
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Event created successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Event created successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create event: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create event: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
