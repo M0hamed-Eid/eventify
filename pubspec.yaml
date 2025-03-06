@@ -46,6 +46,10 @@ dependencies:
   share_plus:
   timezone:
   firebase_storage:
+  cloud_functions:
+  firebase_analytics:
+  supabase_flutter:
+  logger:
 
 dev_dependencies:
   flutter_test:

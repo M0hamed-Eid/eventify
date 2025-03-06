@@ -17,8 +17,6 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final DatabaseService _databaseService = DatabaseService();
   final AuthService _authService = AuthService();
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
@@ -27,7 +25,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAllAsRead() async {
     try {
-      final userId = _authService.currentUser?.uid;
+      final userId = _authService.currentUser?.id;
       if (userId != null) {
         await _databaseService.markAllNotificationsAsRead(userId);
       }
@@ -179,7 +177,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: StreamBuilder<List<NotificationItem>>(
-        stream: _databaseService.getUserNotifications(_authService.currentUser?.uid ?? ''),
+        stream: _databaseService.getUserNotifications(_authService.currentUser?.id ?? ''),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(

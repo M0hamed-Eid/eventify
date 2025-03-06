@@ -8,9 +8,10 @@ class DatabaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Events
-  Future<void> createEvent(Event event) async {
-    await _firestore.collection('events').add(event.toMap());
+  Future<Event> createEvent(Event event) async {
+    final docRef = await _firestore.collection('events').add(event.toMap());
+    final doc = await docRef.get();
+    return Event.fromFirestore(doc);
   }
 
   Future<void> updateEvent(String eventId, Map<String, dynamic> data) async {

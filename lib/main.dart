@@ -1,18 +1,51 @@
 import 'package:eventify/screens/calendar/event_calendar_screen.dart';
-import 'package:eventify/services/service_initializer.dart';
+import 'package:eventify/services/notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/theme.dart';
+import 'firebase_options.dart';
 import 'providers/database_provider.dart';
+import 'screens/admin/admin_dashboard.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/profile/profile_screen.dart';
 
-import 'screens/notifications/notifications_screen.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ServiceInitializer.initializeServices();
+
+  // Initialize Firebase for FCM
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    // SUPABASE_URL
+    url: 'https://xknkomvlqnvftoohfokn.supabase.co',
+    // Project API Keys
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbmtvbXZscW52ZnRvb2hmb2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDc5MjksImV4cCI6MjA1Njc4MzkyOX0.e1dPifWqPw23eEOswmy7UdGZxG8DulDh04SX32W7rD4',
+  );
+
+  // Initialize notifications
+  await NotificationService().initialize();
+
+  await invokeTestEnvFunction();
   runApp(const MyApp());
+}
+
+Future<void> invokeTestEnvFunction() async {
+  final supabase = Supabase.instance.client;
+
+  try {
+    final response = await supabase.functions.invoke(
+      'test-env',
+      headers: {
+        'Authorization': 'Bearer ${supabase.auth.currentSession?.accessToken}',
+      },
+    );
+    print('Response: ${response.data}');
+  } catch (error) {
+    print('Error invoking function: $error');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -47,7 +80,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = const [
     HomeScreen(),
     EventCalendarScreen(),
-    NotificationsScreen(),
+    AdminDashboard(),
     ProfileScreen(),
   ];
 

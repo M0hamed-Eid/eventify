@@ -604,6 +604,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     }
   }
 
+// In _AddEventScreenState
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate() &&
         _selectedDate != null &&
@@ -637,18 +638,12 @@ class _AddEventScreenState extends State<AddEventScreen> {
           series: _selectedSeries == 'None' ? null : _selectedSeries,
         );
 
-        await Provider.of<DatabaseProvider>(context, listen: false)
+        final createdEvent = await Provider.of<DatabaseProvider>(context, listen: false)
             .database
             .createEvent(event);
 
         if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Event created successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          Navigator.pop(context, createdEvent); // Return the created event
         }
       } catch (e) {
         if (mounted) {

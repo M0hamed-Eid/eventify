@@ -47,6 +47,7 @@ class DefaultFirebaseOptions {
     projectId: 'eventify202530',
     authDomain: 'eventify202530.firebaseapp.com',
     storageBucket: 'eventify202530.firebasestorage.app',
+    measurementId: 'G-LBY679CDLN',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -82,5 +83,7 @@ class DefaultFirebaseOptions {
     projectId: 'eventify202530',
     authDomain: 'eventify202530.firebaseapp.com',
     storageBucket: 'eventify202530.firebasestorage.app',
+    measurementId: 'G-004YC8R228',
   );
+
 }

@@ -1,21 +1,31 @@
-import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  User? get currentUser => _auth.currentUser;
-
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  Future<UserCredential> signInWithEmailAndPassword(
-      String email, String password) async {
-    return await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-  }
+  User? get currentUser => _supabase.auth.currentUser;
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await _supabase.auth.signOut();
+  }
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
+  Future<bool> isUserAdmin() async {
+    try {
+      final userId = currentUser?.id;
+      if (userId == null) return false;
+
+      final response = await _supabase
+          .from('user_roles')
+          .select()
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .single();
+
+      return response != null;
+    } catch (e) {
+      return false;
+    }
   }
 }

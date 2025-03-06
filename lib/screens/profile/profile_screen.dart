@@ -33,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _setupUserListener();
   }
   void _setupUserListener() {
-    final userId = _authService.currentUser?.uid;
+    final userId = _authService.currentUser?.id;
     if (userId != null) {
       _userSubscription = _databaseService
           .getUserProfileStream(userId)
@@ -52,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUserProfile() async {
     setState(() => _isLoading = true);
     try {
-      final userId = _authService.currentUser?.uid;
+      final userId = _authService.currentUser?.id;
       if (userId != null) {
         // Use Future instead of Stream
         final userProfile = await _databaseService.getUserProfile(userId);
