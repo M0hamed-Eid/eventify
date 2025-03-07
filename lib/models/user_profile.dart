@@ -1,6 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-import 'event.dart';
+import 'package:eventify/models/event.dart';
 
 class UserProfile {
   final String uid;
@@ -8,10 +6,9 @@ class UserProfile {
   final String displayName;
   final String? photoURL;
   final String membershipStatus;
-  final DateTime createdAt;
-  final DateTime lastLoginAt;
-  final NotificationSettings notificationSettings;
   final List<Event> savedEvents;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
 
   UserProfile({
     required this.uid,
@@ -19,129 +16,52 @@ class UserProfile {
     required this.displayName,
     this.photoURL,
     required this.membershipStatus,
-    required this.createdAt,
-    required this.lastLoginAt,
-    required this.notificationSettings,
     required this.savedEvents,
+    required this.createdAt,
+    this.updatedAt,
   });
 
-  factory UserProfile.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      uid: doc.id,
-      email: data['email'] ?? '',
-      displayName: data['displayName'] ?? '',
-      photoURL: data['photoURL'],
-      membershipStatus: data['membershipStatus'] ?? 'Non-Member',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      lastLoginAt: (data['lastLoginAt'] as Timestamp).toDate(),
-      notificationSettings: NotificationSettings.fromMap(
-          data['notificationSettings'] ?? {}),
-      savedEvents: (data['savedEvents'] as List<dynamic>?)
-          ?.map((e) => Event.fromFirestore(e))
-          .toList() ??
-          [],
+      uid: json['id'],
+      email: json['email'] ?? '',
+      displayName: json['full_name'] ?? '',
+      photoURL: json['avatar_url'],
+      membershipStatus: json['membership_status'] ?? 'Non-Member',
+      savedEvents: List<Event>.from(json['saved_events'] ?? []),
+      createdAt: DateTime.parse(json['created_at']),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toJson() {
     return {
       'email': email,
-      'displayName': displayName,
-      'photoURL': photoURL,
-      'membershipStatus': membershipStatus,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'lastLoginAt': Timestamp.fromDate(lastLoginAt),
-      'notificationSettings': notificationSettings.toMap(),
-      'savedEvents': savedEvents.map((e) => e.toMap()).toList(),
+      'full_name': displayName,
+      'avatar_url': photoURL,
+      'membership_status': membershipStatus,
+      'saved_events': savedEvents,
+      'updated_at': DateTime.now().toIso8601String(),
     };
   }
 
   UserProfile copyWith({
-    String? email,
     String? displayName,
     String? photoURL,
     String? membershipStatus,
-    DateTime? lastLoginAt,
-    NotificationSettings? notificationSettings,
     List<Event>? savedEvents,
-  }) {
-    return UserProfile(
-      uid: this.uid,
-      email: email ?? this.email,
-      displayName: displayName ?? this.displayName,
-      photoURL: photoURL ?? this.photoURL,
-      membershipStatus: membershipStatus ?? this.membershipStatus,
-      createdAt: this.createdAt,
-      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
-      notificationSettings: notificationSettings ?? this.notificationSettings,
-      savedEvents: savedEvents ?? this.savedEvents,
-    );
-  }
-
-  // Add this to the UserProfile class
-  factory UserProfile.create({
-    required String uid,
-    required String email,
-    String? displayName,
-    String? photoURL,
   }) {
     return UserProfile(
       uid: uid,
       email: email,
-      displayName: displayName ?? email.split('@')[0],
-      photoURL: photoURL,
-      membershipStatus: 'Non-Member',
-      createdAt: DateTime.now(),
-      lastLoginAt: DateTime.now(),
-      notificationSettings: NotificationSettings(
-        emailNotifications: true,
-        pushNotifications: true,
-        eventReminders: true,
-      ),
-      savedEvents: [],
+      displayName: displayName ?? this.displayName,
+      photoURL: photoURL ?? this.photoURL,
+      membershipStatus: membershipStatus ?? this.membershipStatus,
+      savedEvents: savedEvents ?? this.savedEvents,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
     );
   }
 }
-
-class NotificationSettings {
-  final bool emailNotifications;
-  final bool pushNotifications;
-  final bool eventReminders;
-
-  NotificationSettings({
-    required this.emailNotifications,
-    required this.pushNotifications,
-    required this.eventReminders,
-  });
-
-  factory NotificationSettings.fromMap(Map<String, dynamic> map) {
-    return NotificationSettings(
-      emailNotifications: map['emailNotifications'] ?? true,
-      pushNotifications: map['pushNotifications'] ?? true,
-      eventReminders: map['eventReminders'] ?? true,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'emailNotifications': emailNotifications,
-      'pushNotifications': pushNotifications,
-      'eventReminders': eventReminders,
-    };
-  }
-
-  NotificationSettings copyWith({
-    bool? emailNotifications,
-    bool? pushNotifications,
-    bool? eventReminders,
-  }) {
-    return NotificationSettings(
-      emailNotifications: emailNotifications ?? this.emailNotifications,
-      pushNotifications: pushNotifications ?? this.pushNotifications,
-      eventReminders: eventReminders ?? this.eventReminders,
-    );
-  }
-
-}
-

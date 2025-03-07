@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/event.dart';
@@ -11,6 +12,78 @@ class DatabaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
+
+
+  Future<UserProfile> getUserProfile(String userId) async {
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select('*, saved_events(*)')
+          .eq('id', userId)
+          .single();
+
+      return UserProfile.fromJson(response);
+    } catch (e) {
+      throw 'Error fetching user profile: $e';
+    }
+  }
+
+  Stream<UserProfile> getUserProfileStream(String userId) {
+    return _supabase
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .eq('id', userId)
+        .map((data) => UserProfile.fromJson(data.first));
+  }
+
+  Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      await _supabase
+          .from('profiles')
+          .update(data)
+          .eq('id', userId);
+    } catch (e) {
+      throw 'Error updating profile: $e';
+    }
+  }
+
+  Future<String> uploadProfilePicture(String userId, XFile image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      final fileExt = image.path.split('.').last;
+      final fileName = 'avatar.$fileExt';
+      final filePath = 'avatars/$userId/$fileName';
+
+      await _supabase.storage
+          .from('avatars')
+          .uploadBinary(filePath, bytes);
+
+      final imageUrl = _supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      await updateUserProfile(userId, {'avatar_url': imageUrl});
+
+      return imageUrl;
+    } catch (e) {
+      throw 'Error uploading profile picture: $e';
+    }
+  }
+
+  Future<void> removeSavedEvent(String userId, String eventId) async {
+    try {
+      final currentProfile = await getUserProfile(userId);
+      final updatedEvents = List<String>.from(currentProfile.savedEvents)
+        ..remove(eventId);
+
+      await updateUserProfile(
+        userId,
+        {'saved_events': updatedEvents},
+      );
+    } catch (e) {
+      throw 'Error removing saved event: $e';
+    }
+  }
 
 
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
@@ -74,26 +147,30 @@ class DatabaseService {
   Future<void> createUserProfile(UserProfile user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toMap());
   }*/
+/*
 
   Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
     await _firestore.collection('users').doc(userId).update(data);
   }
+*/
 
-  Future<UserProfile?> getUserProfile(String userId) async {
+
+
+/*  Future<UserProfile?> getUserProfile(String userId) async {
     final doc = await _firestore.collection('users').doc(userId).get();
     return doc.exists ? UserProfile.fromFirestore(doc) : null;
-  }
+  }*/
 
-  // Add method to get user profile as stream if needed
+/*  // Add method to get user profile as stream if needed
   Stream<UserProfile?> getUserProfileStream(String userId) {
     return _firestore
         .collection('users')
         .doc(userId)
         .snapshots()
         .map((doc) => doc.exists ? UserProfile.fromFirestore(doc) : null);
-  }
+  }*/
 
-  Future<void> removeSavedEvent(String userId, String eventId) async {
+/*  Future<void> removeSavedEvent(String userId, String eventId) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'savedEvents': FieldValue.arrayRemove([eventId]),
@@ -101,7 +178,7 @@ class DatabaseService {
     } catch (e) {
       throw 'Failed to remove saved event: $e';
     }
-  }
+  }*/
 
   // Event Registrations
   Future<void> registerForEvent(String eventId, String userId) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/event.dart';
 import '../../models/user_profile.dart';
 import '../../services/database_service.dart';
@@ -331,13 +332,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
+  // In _ProfileScreenState
   Future<void> _updateProfilePicture() async {
-    // Implement image picker and upload logic
     try {
-      // Show image picker
-      // Upload image
-      // Update user profile
-      await _loadUserProfile(); // Reload profile after update
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (image != null && _user != null) {
+        await _databaseService.uploadProfilePicture(_user!.uid, image);
+        await _loadUserProfile();
+      }
     } catch (e) {
       _showErrorSnackBar('Failed to update profile picture: $e');
     }

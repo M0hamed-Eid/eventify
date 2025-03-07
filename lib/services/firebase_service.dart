@@ -20,11 +20,11 @@ class FirebaseService {
     await _firestore.collection('events').add(event.toMap());
   }
 
-  // Users
+/*  // Users
   Future<UserProfile> getUserProfile(String userId) async {
     final doc = await _firestore.collection('users').doc(userId).get();
     return UserProfile.fromFirestore(doc);
-  }
+  }*/
 
   Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
     await _firestore.collection('users').doc(userId).update(data);
