@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/event.dart';
+import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
+import '../../utils/route_guard.dart';
 import '../events/event_screen.dart';
+import '../home/home_screen.dart';
 import 'manage_events_screen.dart';
 import 'send_notification_screen.dart';
 
@@ -20,43 +23,47 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(16),
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        children: [
-          _buildDashboardCard(
-            'Add Event',
-            Icons.add_circle,
-            Colors.blue,
-                () => _navigateToAddEvent(context),
-          ),
-          _buildDashboardCard(
-            'Manage Events',
-            Icons.event,
-            Colors.green,
-                () => _navigateToManageEvents(context),
-          ),
-          _buildDashboardCard(
-            'Send Notification',
-            Icons.notifications,
-            Colors.orange,
-                () => _navigateToSendNotification(context),
-          ),
-          _buildDashboardCard(
-            'Analytics',
-            Icons.analytics,
-            Colors.purple,
-                () => _showAnalytics(context),
-          ),
-        ],
+    return RouteGuard(
+      allowedRoles: [UserRole.admin],
+      fallbackRoute: const HomeScreen(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Admin Dashboard'),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : GridView.count(
+          crossAxisCount: 2,
+          padding: const EdgeInsets.all(16),
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          children: [
+            _buildDashboardCard(
+              'Add Event',
+              Icons.add_circle,
+              Colors.blue,
+                  () => _navigateToAddEvent(context),
+            ),
+            _buildDashboardCard(
+              'Manage Events',
+              Icons.event,
+              Colors.green,
+                  () => _navigateToManageEvents(context),
+            ),
+            _buildDashboardCard(
+              'Send Notification',
+              Icons.notifications,
+              Colors.orange,
+                  () => _navigateToSendNotification(context),
+            ),
+            _buildDashboardCard(
+              'Analytics',
+              Icons.analytics,
+              Colors.purple,
+                  () => _showAnalytics(context),
+            ),
+          ],
+        ),
       ),
     );
   }

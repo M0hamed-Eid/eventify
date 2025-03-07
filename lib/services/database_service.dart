@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logger/logger.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/event.dart';
 import '../models/notification_item.dart';
 import '../models/user_profile.dart';
@@ -7,6 +9,24 @@ import '../models/workshop.dart';
 class DatabaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final Logger _logger = Logger();
+
+
+  Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      await _supabase
+          .from('profiles')
+          .upsert({
+        'id': userId,
+        ...data,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      _logger.e('Error creating user profile: $e');
+      throw 'Error creating user profile: $e';
+    }
+  }
 
   Future<Event> createEvent(Event event) async {
     final docRef = await _firestore.collection('events').add(event.toMap());
@@ -50,10 +70,10 @@ class DatabaseService {
   }
 
 
-  // Users
+/*  // Users
   Future<void> createUserProfile(UserProfile user) async {
     await _firestore.collection('users').doc(user.uid).set(user.toMap());
-  }
+  }*/
 
   Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
     await _firestore.collection('users').doc(userId).update(data);
