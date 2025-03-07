@@ -50,6 +50,7 @@ dependencies:
   firebase_analytics:
   supabase_flutter:
   logger:
+  google_sign_in:
 
 dev_dependencies:
   flutter_test:

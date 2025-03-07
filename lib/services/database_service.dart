@@ -13,36 +13,83 @@ class DatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
 
-
   Future<UserProfile> getUserProfile(String userId) async {
     try {
-      final response = await _supabase
-          .from('profiles')
-          .select('*, saved_events(*)')
-          .eq('id', userId)
-          .single();
+      final doc = await _firestore
+          .collection('profiles')
+          .doc(userId)
+          .get();
 
-      return UserProfile.fromJson(response);
+      if (!doc.exists) {
+        throw 'Profile not found';
+      }
+
+      // Get saved events
+      final savedEventsSnapshot = await _firestore
+          .collection('saved_events')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final savedEventIds = savedEventsSnapshot.docs
+          .map((doc) => doc.data()['eventId'] as String)
+          .toList();
+
+      // Combine profile data with saved events
+      final userData = {
+        ...doc.data()!,
+        'id': doc.id,
+        'saved_events': savedEventIds,
+      };
+
+      return UserProfile.fromJson(userData);
     } catch (e) {
+      _logger.e('Error fetching user profile: $e');
       throw 'Error fetching user profile: $e';
     }
   }
 
   Stream<UserProfile> getUserProfileStream(String userId) {
-    return _supabase
-        .from('profiles')
-        .stream(primaryKey: ['id'])
-        .eq('id', userId)
-        .map((data) => UserProfile.fromJson(data.first));
+    return _firestore
+        .collection('profiles')
+        .doc(userId)
+        .snapshots()
+        .asyncMap((doc) async {
+      if (!doc.exists) {
+        throw 'Profile not found';
+      }
+
+      // Get saved events
+      final savedEventsSnapshot = await _firestore
+          .collection('saved_events')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final savedEventIds = savedEventsSnapshot.docs
+          .map((doc) => doc.data()['eventId'] as String)
+          .toList();
+
+      // Combine profile data with saved events
+      final userData = {
+        ...doc.data()!,
+        'id': doc.id,
+        'saved_events': savedEventIds,
+      };
+
+      return UserProfile.fromJson(userData);
+    });
   }
 
   Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
     try {
-      await _supabase
-          .from('profiles')
-          .update(data)
-          .eq('id', userId);
+      await _firestore
+          .collection('profiles')
+          .doc(userId)
+          .update({
+        ...data,
+        'updated_at': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
+      _logger.e('Error updating profile: $e');
       throw 'Error updating profile: $e';
     }
   }
@@ -54,50 +101,84 @@ class DatabaseService {
       final fileName = 'avatar.$fileExt';
       final filePath = 'avatars/$userId/$fileName';
 
+      // Upload to Supabase storage
       await _supabase.storage
           .from('avatars')
           .uploadBinary(filePath, bytes);
 
+      // Get the public URL
       final imageUrl = _supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
 
+      // Update profile with new image URL
       await updateUserProfile(userId, {'avatar_url': imageUrl});
 
       return imageUrl;
     } catch (e) {
+      _logger.e('Error uploading profile picture: $e');
       throw 'Error uploading profile picture: $e';
+    }
+  }
+
+  Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
+    try {
+      await _firestore
+          .collection('profiles')
+          .doc(userId)
+          .set({
+        ...data,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      _logger.e('Error creating user profile: $e');
+      throw 'Error creating user profile: $e';
     }
   }
 
   Future<void> removeSavedEvent(String userId, String eventId) async {
     try {
-      final currentProfile = await getUserProfile(userId);
-      final updatedEvents = List<String>.from(currentProfile.savedEvents)
-        ..remove(eventId);
-
-      await updateUserProfile(
-        userId,
-        {'saved_events': updatedEvents},
-      );
+      await _firestore
+          .collection('saved_events')
+          .where('userId', isEqualTo: userId)
+          .where('eventId', isEqualTo: eventId)
+          .get()
+          .then((snapshot) {
+        for (var doc in snapshot.docs) {
+          doc.reference.delete();
+        }
+      });
     } catch (e) {
+      _logger.e('Error removing saved event: $e');
       throw 'Error removing saved event: $e';
     }
   }
 
-
-  Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
+  Future<void> saveEvent(String userId, String eventId) async {
     try {
-      await _supabase
-          .from('profiles')
-          .upsert({
-        'id': userId,
-        ...data,
-        'updated_at': DateTime.now().toIso8601String(),
+      await _firestore
+          .collection('saved_events')
+          .add({
+        'userId': userId,
+        'eventId': eventId,
+        'saved_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      _logger.e('Error creating user profile: $e');
-      throw 'Error creating user profile: $e';
+      _logger.e('Error saving event: $e');
+      throw 'Error saving event: $e';
+    }
+  }
+
+  // Helper method to delete profile picture
+  Future<void> deleteProfilePicture(String userId, String fileName) async {
+    try {
+      await _supabase.storage
+          .from('avatars')
+          .remove(['avatars/$userId/$fileName']);
+    } catch (e) {
+      _logger.e('Error deleting profile picture: $e');
+      throw 'Error deleting profile picture: $e';
     }
   }
 
@@ -141,44 +222,6 @@ class DatabaseService {
         .map((snapshot) =>
         snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList());
   }
-
-
-/*  // Users
-  Future<void> createUserProfile(UserProfile user) async {
-    await _firestore.collection('users').doc(user.uid).set(user.toMap());
-  }*/
-/*
-
-  Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
-    await _firestore.collection('users').doc(userId).update(data);
-  }
-*/
-
-
-
-/*  Future<UserProfile?> getUserProfile(String userId) async {
-    final doc = await _firestore.collection('users').doc(userId).get();
-    return doc.exists ? UserProfile.fromFirestore(doc) : null;
-  }*/
-
-/*  // Add method to get user profile as stream if needed
-  Stream<UserProfile?> getUserProfileStream(String userId) {
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .snapshots()
-        .map((doc) => doc.exists ? UserProfile.fromFirestore(doc) : null);
-  }*/
-
-/*  Future<void> removeSavedEvent(String userId, String eventId) async {
-    try {
-      await _firestore.collection('users').doc(userId).update({
-        'savedEvents': FieldValue.arrayRemove([eventId]),
-      });
-    } catch (e) {
-      throw 'Failed to remove saved event: $e';
-    }
-  }*/
 
   // Event Registrations
   Future<void> registerForEvent(String eventId, String userId) async {

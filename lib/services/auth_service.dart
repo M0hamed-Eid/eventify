@@ -1,5 +1,6 @@
-
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:logger/logger.dart';
 
 enum UserRole {
@@ -8,25 +9,26 @@ enum UserRole {
 }
 
 class AuthService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
 
-  User? get currentUser => _supabase.auth.currentUser;
+  User? get currentUser => _auth.currentUser;
 
-  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Future<UserRole> getCurrentUserRole() async {
     try {
-      final userId = currentUser?.id;
+      final userId = currentUser?.uid;
       if (userId == null) throw 'User not authenticated';
 
-      final response = await _supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
+      final docSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
 
-      return response['role'] == 'admin' ? UserRole.admin : UserRole.user;
+      return docSnapshot.data()?['role'] == 'admin' ? UserRole.admin : UserRole.user;
     } catch (e) {
       _logger.e('Error getting user role: $e');
       return UserRole.user;
@@ -42,20 +44,27 @@ class AuthService {
     try {
       _logger.d('Signing up user: $email');
 
-      final AuthResponse response = await _supabase.auth.signUp(
+      final UserCredential credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        data: {
-          'full_name': fullName,
-          'role': role.toString().split('.').last,
-        },
       );
 
-      if (response.user == null) {
+      if (credential.user == null) {
         throw 'Signup failed: No user returned';
       }
 
-      _logger.d('User signed up successfully: ${response.user!.id}');
+      // Create user profile in Firestore
+      await _firestore.collection('users').doc(credential.user!.uid).set({
+        'fullName': fullName,
+        'email': email,
+        'role': role.toString().split('.').last,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update display name
+      await credential.user!.updateDisplayName(fullName);
+
+      _logger.d('User signed up successfully: ${credential.user!.uid}');
     } catch (e) {
       _logger.e('Error during signup: $e');
       throw 'Error during signup: $e';
@@ -69,16 +78,16 @@ class AuthService {
     try {
       _logger.d('Signing in user: $email');
 
-      final AuthResponse response = await _supabase.auth.signInWithPassword(
+      final UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (response.user == null) {
+      if (credential.user == null) {
         throw 'Login failed: No user returned';
       }
 
-      _logger.d('User signed in successfully: ${response.user!.id}');
+      _logger.d('User signed in successfully: ${credential.user!.uid}');
     } catch (e) {
       _logger.e('Error during login: $e');
       throw 'Error during login: $e';
@@ -88,7 +97,7 @@ class AuthService {
   Future<void> signOut() async {
     try {
       _logger.d('Signing out user');
-      await _supabase.auth.signOut();
+      await _auth.signOut();
       _logger.d('User signed out successfully');
     } catch (e) {
       _logger.e('Error during sign out: $e');
@@ -99,7 +108,7 @@ class AuthService {
   Future<void> resetPassword(String email) async {
     try {
       _logger.d('Sending password reset email to: $email');
-      await _supabase.auth.resetPasswordForEmail(email);
+      await _auth.sendPasswordResetEmail(email: email);
       _logger.d('Password reset email sent successfully');
     } catch (e) {
       _logger.e('Error sending password reset: $e');
@@ -110,11 +119,8 @@ class AuthService {
   Future<void> updatePassword(String newPassword) async {
     try {
       _logger.d('Updating user password');
-      await _supabase.auth.updateUser(
-        UserAttributes(
-          password: newPassword,
-        ),
-      );
+      if (currentUser == null) throw 'No user logged in';
+      await currentUser!.updatePassword(newPassword);
       _logger.d('Password updated successfully');
     } catch (e) {
       _logger.e('Error updating password: $e');
@@ -124,16 +130,19 @@ class AuthService {
 
   Future<Map<String, dynamic>> getUserProfile() async {
     try {
-      final userId = currentUser?.id;
+      final userId = currentUser?.uid;
       if (userId == null) throw 'User not authenticated';
 
-      final response = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .single();
+      final docSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
 
-      return response;
+      if (!docSnapshot.exists) {
+        throw 'User profile not found';
+      }
+
+      return docSnapshot.data() ?? {};
     } catch (e) {
       _logger.e('Error getting user profile: $e');
       throw 'Error getting user profile: $e';
@@ -142,13 +151,21 @@ class AuthService {
 
   Future<void> updateUserProfile(Map<String, dynamic> data) async {
     try {
-      final userId = currentUser?.id;
+      final userId = currentUser?.uid;
       if (userId == null) throw 'User not authenticated';
 
-      await _supabase
-          .from('profiles')
-          .update(data)
-          .eq('id', userId);
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update display name if it's being changed
+      if (data.containsKey('fullName')) {
+        await currentUser!.updateDisplayName(data['fullName']);
+      }
 
       _logger.d('Profile updated successfully');
     } catch (e) {
@@ -156,35 +173,55 @@ class AuthService {
       throw 'Error updating profile: $e';
     }
   }
-}
 
+  // Additional Firebase-specific methods
 
-/*
-class AuthService {
-  final SupabaseClient _supabase = Supabase.instance.client;
-
-  User? get currentUser => _supabase.auth.currentUser;
-
-  Future<void> signOut() async {
-    await _supabase.auth.signOut();
-  }
-  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
-
-  Future<bool> isUserAdmin() async {
+  Future<void> verifyEmail() async {
     try {
-      final userId = currentUser?.id;
-      if (userId == null) return false;
-
-      final response = await _supabase
-          .from('user_roles')
-          .select()
-          .eq('user_id', userId)
-          .eq('role', 'admin')
-          .single();
-
-      return response != null;
+      final user = currentUser;
+      if (user == null) throw 'No user logged in';
+      if (!user.emailVerified) {
+        await user.sendEmailVerification();
+      }
     } catch (e) {
-      return false;
+      _logger.e('Error sending verification email: $e');
+      throw 'Error sending verification email: $e';
     }
   }
-}*/
+
+  Future<void> signInWithGoogle() async {
+    try {
+      // Create a GoogleSignIn instance
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) throw 'Google sign in aborted';
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the credential
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // Create/Update user profile in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'fullName': userCredential.user!.displayName,
+        'email': userCredential.user!.email,
+        'role': 'user',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+    } catch (e) {
+      _logger.e('Error signing in with Google: $e');
+      throw 'Error signing in with Google: $e';
+    }
+  }
+}
