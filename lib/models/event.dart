@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Event {
+
   final String id;
   final String title;
   final String description;
@@ -18,6 +19,21 @@ class Event {
   final List<String> guidelines;
   final String category;
   final String? series;
+
+  final DateTime? endDateTime;
+  final List<String> requirements;
+  final String? applicationDeadline;
+  final bool requiresRegistration;
+  final String? targetAudience;
+  final List<String> technicalRequirements;
+  final List<String> programEtiquette;
+  final String? contactEmail;
+  final String? programType;
+  final bool isCertificateAvailable;
+  final String? certificateRequirements;
+
+  final bool notificationSent;
+  final DateTime? notificationSentAt;
 
   Event({
     required this.id,
@@ -37,6 +53,21 @@ class Event {
     required this.guidelines,
     required this.category,
     this.series,
+
+    this.endDateTime,
+    this.requirements = const [],
+    this.applicationDeadline,
+    this.requiresRegistration = false,
+    this.targetAudience,
+    this.technicalRequirements = const [],
+    this.programEtiquette = const [],
+    this.contactEmail,
+    this.programType,
+    this.isCertificateAvailable = false,
+    this.certificateRequirements,
+
+    this.notificationSent = false,
+    this.notificationSentAt,
   });
 
   factory Event.fromFirestore(DocumentSnapshot doc) {
@@ -63,6 +94,8 @@ class Event {
           : [],
       category: data['category'] ?? '',
       series: data['series'],
+      notificationSent: data['notificationSent'] ?? false,
+      notificationSentAt: (data['notificationSentAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -85,6 +118,9 @@ class Event {
       'guidelines': guidelines,
       'category': category,
       'series': series,
+
+      'notificationSent': notificationSent,
+      'notificationSentAt': notificationSentAt != null ? Timestamp.fromDate(notificationSentAt!) : null,
     };
   }
 

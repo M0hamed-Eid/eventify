@@ -1,10 +1,14 @@
 // lib/services/notification_service.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:logger/logger.dart';
 
+import '../models/notification_item.dart';
+
 class NotificationService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
@@ -175,7 +179,67 @@ class NotificationService {
       _logger.e('Error sending notification: $e');
       rethrow;
     }
+
+
+
+
   }
+
+  Stream<List<NotificationItem>> getUserNotifications(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+        snapshot.docs.map((doc) => NotificationItem.fromFirestore(doc, isRead: false)).toList());
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    try {
+      await _firestore
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      _logger.e('Error marking notification as read: $e');
+      throw 'Error marking notification as read: $e';
+    }
+  }
+
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      final batch = _firestore.batch();
+
+      final notifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      for (var doc in notifications.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      _logger.e('Error marking all notifications as read: $e');
+      throw 'Error marking all notifications as read: $e';
+    }
+  }
+
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _firestore
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
+    } catch (e) {
+      _logger.e('Error deleting notification: $e');
+      throw 'Error deleting notification: $e';
+    }
+  }
+
 }
 
 // Top-level function for background message handling

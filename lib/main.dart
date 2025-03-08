@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/env.dart';
 import 'config/routes.dart';
 import 'config/theme.dart';
 import 'firebase_options.dart';
@@ -19,9 +20,9 @@ void main() async {
   // Initialize Supabase
   await Supabase.initialize(
     // SUPABASE_URL
-    url: 'https://xknkomvlqnvftoohfokn.supabase.co',
+    url: Env.supabaseUrl ,
     // Project API Keys
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhrbmtvbXZscW52ZnRvb2hmb2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyMDc5MjksImV4cCI6MjA1Njc4MzkyOX0.e1dPifWqPw23eEOswmy7UdGZxG8DulDh04SX32W7rD4',
+    anonKey: Env.supabaseAnonKey ,
   );
 
   // Initialize notifications

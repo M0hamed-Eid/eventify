@@ -4,8 +4,8 @@ import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/route_guard.dart';
-import '../events/event_screen.dart';
 import '../home/home_screen.dart';
+import 'add_event_screen.dart';
 import 'manage_events_screen.dart';
 import 'send_notification_screen.dart';
 

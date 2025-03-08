@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,12 +7,74 @@ import '../models/event.dart';
 import '../models/notification_item.dart';
 import '../models/user_profile.dart';
 import '../models/workshop.dart';
+import 'package:intl/intl.dart';
+
+import 'notification_service.dart';
+
 
 class DatabaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
+
+  // Add this method to send notifications to all users
+  Future<void> _sendEventNotification(Event event) async {
+    try {
+      // Create notification message
+      final message = _createEventNotificationMessage(event);
+
+      // Send push notification
+      await _notificationService.sendCustomNotification(
+        title: 'New Event: ${event.title}',
+        body: message,
+        data: {
+          'type': 'event',
+          'eventId': event.id,
+          'action': 'view_event',
+        },
+      );
+
+      // Create notifications in Firestore for all users
+      await _createEventNotificationsForUsers(event, message);
+
+      // Update event with notification status
+      await _firestore
+          .collection('events')
+          .doc(event.id)
+          .update({
+        'notificationSent': true,
+        'notificationSentAt': FieldValue.serverTimestamp(),
+      });
+
+    } catch (e) {
+      _logger.e('Error sending event notification: $e');
+      throw 'Error sending event notification: $e';
+    }
+  }
+
+  String _createEventNotificationMessage(Event event) {
+    final dateFormat = DateFormat('EEEE, MMMM d');
+    final date = dateFormat.format(event.dateTime);
+
+    String message = 'Join us on $date for ${event.title}. ';
+
+    if (event.isOnline) {
+      message += 'This event will be held online via Zoom. ';
+    } else {
+      message += 'This event will be held at ${event.location}. ';
+    }
+
+    if (event.isAccMembersOnly) {
+      message += 'This event is exclusive to ACC members. ';
+    }
+
+    message += 'Time: ${event.timeRange}';
+
+    return message;
+  }
+
 
   Future<UserProfile> getUserProfile(String userId) async {
     try {
@@ -34,14 +97,21 @@ class DatabaseService {
           .map((doc) => doc.data()['eventId'] as String)
           .toList();
 
-      // Combine profile data with saved events
-      final userData = {
-        ...doc.data()!,
+      // Convert Firestore Timestamps to DateTime or String
+      final profileData = doc.data()!;
+      final convertedData = {
+        ...profileData,
+        'created_at': profileData['created_at'] is Timestamp
+            ? (profileData['created_at'] as Timestamp).toDate().toString() // Convert to String
+            : profileData['created_at'].toString(), // Fallback to String
+        'updated_at': profileData['updated_at'] is Timestamp
+            ? (profileData['updated_at'] as Timestamp).toDate().toString() // Convert to String
+            : profileData['updated_at'].toString(), // Fallback to String
         'id': doc.id,
         'saved_events': savedEventIds,
       };
 
-      return UserProfile.fromJson(userData);
+      return UserProfile.fromJson(convertedData);
     } catch (e) {
       _logger.e('Error fetching user profile: $e');
       throw 'Error fetching user profile: $e';
@@ -68,14 +138,21 @@ class DatabaseService {
           .map((doc) => doc.data()['eventId'] as String)
           .toList();
 
-      // Combine profile data with saved events
-      final userData = {
-        ...doc.data()!,
+      // Convert Firestore Timestamps to DateTime or String
+      final profileData = doc.data()!;
+      final convertedData = {
+        ...profileData,
+        'created_at': profileData['created_at'] is Timestamp
+            ? (profileData['created_at'] as Timestamp).toDate().toString() // Convert to String
+            : profileData['created_at'].toString(), // Fallback to String
+        'updated_at': profileData['updated_at'] is Timestamp
+            ? (profileData['updated_at'] as Timestamp).toDate().toString() // Convert to String
+            : profileData['updated_at'].toString(), // Fallback to String
         'id': doc.id,
         'saved_events': savedEventIds,
       };
 
-      return UserProfile.fromJson(userData);
+      return UserProfile.fromJson(convertedData);
     });
   }
 
@@ -89,7 +166,7 @@ class DatabaseService {
         'updated_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      _logger.e('Error updating profile: $e');
+      print(e.toString());      _logger.e('Error updating profile: $e');
       throw 'Error updating profile: $e';
     }
   }
@@ -183,9 +260,20 @@ class DatabaseService {
   }
 
   Future<Event> createEvent(Event event) async {
-    final docRef = await _firestore.collection('events').add(event.toMap());
-    final doc = await docRef.get();
-    return Event.fromFirestore(doc);
+  try {
+  // Create the event
+  final docRef = await _firestore.collection('events').add(event.toMap());
+  final doc = await docRef.get();
+  final createdEvent = Event.fromFirestore(doc);
+
+  // Send notification
+  await _sendEventNotification(createdEvent);
+
+  return createdEvent;
+  } catch (e) {
+  _logger.e('Error creating event: $e');
+  throw 'Error creating event: $e';
+  }
   }
 
   Future<void> updateEvent(String eventId, Map<String, dynamic> data) async {
@@ -262,7 +350,7 @@ class DatabaseService {
       'message': message,
       'type': type,
       'eventId': eventId,
-      'createdAt': FieldValue.serverTimestamp(),
+      'dateTime': FieldValue.serverTimestamp(), // Use server timestamp
       'isRead': false,
     });
   }
@@ -295,33 +383,70 @@ class DatabaseService {
   }
 
 
+
+
+  Future<void> _createEventNotificationsForUsers(Event event, String message) async {
+    try {
+      // Create single notification for all users
+      await _firestore
+          .collection('notifications')
+          .add({
+        'title': 'New Event: ${event.title}',
+        'message': message,
+        'type': 'event',
+        'eventId': event.id,
+        'dateTime': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'data': {
+          'action': 'view_event',
+          'eventId': event.id,
+        },
+        'readBy': [], // Array to track which users have read the notification
+      });
+    } catch (e) {
+      _logger.e('Error creating notifications: $e');
+      throw 'Error creating notifications: $e';
+    }
+  }
+
   Stream<List<NotificationItem>> getUserNotifications(String userId) {
     return _firestore
         .collection('notifications')
-        .where('userId', isEqualTo: userId)
         .orderBy('dateTime', descending: true)
         .snapshots()
-        .map((snapshot) =>
-        snapshot.docs.map((doc) => NotificationItem.fromFirestore(doc)).toList());
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final readBy = List<String>.from(data['readBy'] ?? []);
+
+        return NotificationItem.fromFirestore(
+          doc,
+          isRead: readBy.contains(userId), // Check if current user has read it
+        );
+      }).toList();
+    });
   }
 
   Future<void> markNotificationAsRead(String notificationId) async {
     await _firestore
         .collection('notifications')
         .doc(notificationId)
-        .update({'isRead': true});
+        .update({
+      'readBy': FieldValue.arrayUnion([FirebaseAuth.instance.currentUser?.uid]), // Add user to readBy array
+    });
   }
 
   Future<void> markAllNotificationsAsRead(String userId) async {
-    final batch = _firestore.batch();
     final notifications = await _firestore
         .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
         .get();
 
+    final batch = _firestore.batch();
+
     for (var doc in notifications.docs) {
-      batch.update(doc.reference, {'isRead': true});
+      batch.update(doc.reference, {
+        'readBy': FieldValue.arrayUnion([userId]),
+      });
     }
 
     await batch.commit();
