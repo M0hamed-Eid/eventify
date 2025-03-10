@@ -3,6 +3,7 @@ import '../../models/notification_item.dart';
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../admin/admin_dashboard.dart';
+import '../calendar/calendar_screen.dart';
 import '../calendar/event_calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -49,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
       NavigationItem(
         icon: Icons.calendar_today,
         label: 'Calendar',
-        screen: const EventCalendarScreen(),
+        screen: const CalendarScreen(),
       ),
       NavigationItem(
         icon: Icons.person,

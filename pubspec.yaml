@@ -55,6 +55,7 @@ dependencies:
   cached_network_image:
   shimmer:
   flutter_animate:
+  url_launcher:
 
 
 dev_dependencies:
