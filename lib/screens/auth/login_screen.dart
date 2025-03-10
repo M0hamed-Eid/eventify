@@ -67,25 +67,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue[100],
                           shape: BoxShape.circle,
                         ),
-                        child: const FlutterLogo(size: 80),
+                        child: Image.asset(
+                          width: 200,
+                          height: 200,
+                          'assets/acc_logo.png',
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'Welcome Back',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[900],
-                        ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[900],
+                            ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Login to continue',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.grey[600],
-                        ),
+                              color: Colors.grey[600],
+                            ),
                       ),
                     ],
                   ),
@@ -103,7 +109,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _emailController,
                         decoration: InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined, color: Colors.blue),
+                          prefixIcon: const Icon(Icons.email_outlined,
+                              color: Colors.blue),
                           filled: true,
                           fillColor: Colors.grey[50],
                           border: OutlineInputBorder(
@@ -133,7 +140,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _passwordController,
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
+                          prefixIcon: const Icon(Icons.lock_outline,
+                              color: Colors.blue),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword
@@ -197,11 +205,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           backgroundColor: Colors.blue[700],
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
-                          'Login',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                                'Login',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.white),
+                              ),
                       ),
                     ],
                   ),
@@ -226,7 +236,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(
                           color: Colors.blue[700],
                           fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),

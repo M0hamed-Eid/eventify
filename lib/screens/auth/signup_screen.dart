@@ -79,26 +79,28 @@ class _SignupScreenState extends State<SignupScreen> {
                   child: Column(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.person_add_alt_1_rounded,
-                          size: 80,
-                          color: Colors.blue[700],
+                        child: Image.asset(
+                          width: 200,
+                          height: 200,
+                          'assets/acc_logo.png',
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       Text(
                         'Create an Account',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue[900],
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Text(
                         'Sign up to get started',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -207,6 +209,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             : const Text(
                           'Sign Up',
                           style: TextStyle(
+                            color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -235,7 +238,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         style: TextStyle(
                           color: Colors.blue[700],
                           fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
