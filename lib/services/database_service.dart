@@ -8,7 +8,6 @@ import '../models/notification_item.dart';
 import '../models/user_profile.dart';
 import '../models/workshop.dart';
 import 'package:intl/intl.dart';
-
 import 'notification_service.dart';
 
 
@@ -19,6 +18,158 @@ class DatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
 
+  Future<bool> isUserRegisteredForEvent({
+    required String eventId,
+    required String userId,
+  }) async {
+    try {
+      final registrationSnapshot = await _firestore
+          .collection('registrations')
+          .where('eventId', isEqualTo: eventId)
+          .where('userId', isEqualTo: userId)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
+
+      return registrationSnapshot.docs.isNotEmpty;
+    } catch (e) {
+      _logger.e('Error checking event registration: $e');
+      return false;
+    }
+  }
+  // Unregister from an event
+  Future<void> unregisterFromEvent(String eventId, String userId) async {
+    try {
+      // Start a batch write to ensure atomicity
+      WriteBatch batch = _firestore.batch();
+
+      // Find and delete the registration
+      final registrationQuery = await _firestore
+          .collection('registrations')
+          .where('eventId', isEqualTo: eventId)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      // Delete registration documents
+      for (var doc in registrationQuery.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Update event participants count
+      final eventRef = _firestore.collection('events').doc(eventId);
+      batch.update(eventRef, {
+        'currentParticipants': FieldValue.increment(-1),
+      });
+
+      // Commit the batch
+      await batch.commit();
+
+      // Create a notification about unregistration
+      await createNotification(
+        userId: userId,
+        title: 'Event Unregistration',
+        message: 'You have been unregistered from the event.',
+        type: 'event_unregistration',
+        eventId: eventId,
+      );
+    } catch (e) {
+      _logger.e('Error unregistering from event: $e');
+      throw 'Failed to unregister from event: $e';
+    }
+  }
+
+  // Get registered events for a user
+  Stream<List<Event>> getUserRegisteredEvents(String userId) {
+    return _firestore
+        .collection('registrations')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'confirmed')
+        .snapshots()
+        .asyncMap((registrationsSnapshot) async {
+      // Extract event IDs from registrations
+      final eventIds = registrationsSnapshot.docs
+          .map((doc) => doc.data()['eventId'] as String)
+          .toList();
+
+      // If no registrations, return empty list
+      if (eventIds.isEmpty) return [];
+
+      // Fetch events for these IDs
+      final eventsSnapshot = await _firestore
+          .collection('events')
+          .where(FieldPath.documentId, whereIn: eventIds)
+          .get();
+
+      return eventsSnapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
+    });
+  }
+
+// Get participants for an event
+  Future<List<UserProfile>> getEventParticipants(String eventId) async {
+    try {
+      // First, get registration documents for this event
+      final registrationsSnapshot = await _firestore
+          .collection('registrations')
+          .where('eventId', isEqualTo: eventId)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
+
+      // Extract user IDs
+      final userIds = registrationsSnapshot.docs
+          .map((doc) => doc.data()['userId'] as String)
+          .toList();
+
+      // Fetch user profiles
+      final participantsSnapshot = await _firestore
+          .collection('profiles')
+          .where(FieldPath.documentId, whereIn: userIds)
+          .get();
+
+      return participantsSnapshot.docs
+          .map((doc) => UserProfile.fromJson({
+        ...doc.data(),
+        'id': doc.id,
+      }))
+          .toList();
+    } catch (e) {
+      _logger.e('Error fetching event participants: $e');
+      throw 'Failed to fetch event participants: $e';
+    }
+  }
+  // Check event registration status with more details
+  Future<Map<String, dynamic>> checkEventRegistrationStatus(
+      String eventId,
+      String userId,
+      ) async {
+    try {
+      final registrationSnapshot = await _firestore
+          .collection('registrations')
+          .where('eventId', isEqualTo: eventId)
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      if (registrationSnapshot.docs.isEmpty) {
+        return {
+          'isRegistered': false,
+          'status': null,
+        };
+      }
+
+      final registrationData = registrationSnapshot.docs.first.data();
+      return {
+        'isRegistered': true,
+        'status': registrationData['status'],
+        'registeredAt': registrationData['registeredAt'],
+      };
+    } catch (e) {
+      _logger.e('Error checking registration status: $e');
+      throw 'Failed to check registration status: $e';
+    }
+  }
+
+
+
   // Add this method to send notifications to all users
   Future<void> _sendEventNotification(Event event) async {
     try {
@@ -27,7 +178,7 @@ class DatabaseService {
 
       // Send push notification
       await _notificationService.sendCustomNotification(
-        title: 'New Event: ${event.title}',
+        title: event.title,
         body: message,
         data: {
           'type': 'event',
@@ -311,29 +462,62 @@ class DatabaseService {
         snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList());
   }
 
-  // Event Registrations
-  Future<void> registerForEvent(String eventId, String userId) async {
-    final registrationData = {
-      'eventId': eventId,
-      'userId': userId,
-      'status': 'confirmed',
-      'registeredAt': FieldValue.serverTimestamp(),
-      'attendanceStatus': null,
-    };
+  // Enhanced register for event method with waitlist support
+  Future<String> registerForEvent(String eventId, String userId) async {
+    try {
+      // Get the event details
+      final eventDoc = await _firestore.collection('events').doc(eventId).get();
+      final eventData = eventDoc.data();
 
-    WriteBatch batch = _firestore.batch();
+      if (eventData == null) {
+        throw 'Event not found';
+      }
 
-    // Create registration
-    final registrationRef = _firestore.collection('registrations').doc();
-    batch.set(registrationRef, registrationData);
+      final maxParticipants = eventData['maxParticipants'] ?? 50;
+      final currentParticipants = eventData['currentParticipants'] ?? 0;
 
-    // Update event participants count
-    final eventRef = _firestore.collection('events').doc(eventId);
-    batch.update(eventRef, {
-      'currentParticipants': FieldValue.increment(1),
-    });
+      // Check if event is full
+      if (currentParticipants >= maxParticipants) {
+        // Add to waitlist
+        return await _addToWaitlist(eventId, userId);
+      }
 
-    await batch.commit();
+      // Proceed with normal registration
+      WriteBatch batch = _firestore.batch();
+
+      // Create registration
+      final registrationRef = _firestore.collection('registrations').doc();
+      batch.set(registrationRef, {
+        'eventId': eventId,
+        'userId': userId,
+        'status': 'confirmed',
+        'registeredAt': FieldValue.serverTimestamp(),
+        'attendanceStatus': null,
+      });
+
+      // Update event participants count
+      final eventRef = _firestore.collection('events').doc(eventId);
+      batch.update(eventRef, {
+        'currentParticipants': FieldValue.increment(1),
+      });
+
+      // Commit batch
+      await batch.commit();
+
+      // Create notification
+      await createNotification(
+        userId: userId,
+        title: 'Event Registration',
+        message: 'You have been registered for the event.',
+        type: 'event_registration',
+        eventId: eventId,
+      );
+
+      return 'confirmed';
+    } catch (e) {
+      _logger.e('Error registering for event: $e');
+      throw 'Failed to register for event: $e';
+    }
   }
 
   // Notifications
@@ -522,6 +706,33 @@ class DatabaseService {
     event.title.toLowerCase().contains(queryLower) ||
         event.description.toLowerCase().contains(queryLower))
         .toList();
+  }
+
+  // Add to waitlist if event is full
+  Future<String> _addToWaitlist(String eventId, String userId) async {
+    try {
+      final waitlistRef = _firestore.collection('event_waitlists').doc();
+      await waitlistRef.set({
+        'eventId': eventId,
+        'userId': userId,
+        'status': 'waiting',
+        'addedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification about waitlist
+      await createNotification(
+        userId: userId,
+        title: 'Waitlist Notification',
+        message: 'You have been added to the waitlist for the event.',
+        type: 'event_waitlist',
+        eventId: eventId,
+      );
+
+      return 'waitlisted';
+    } catch (e) {
+      _logger.e('Error adding to waitlist: $e');
+      throw 'Failed to add to waitlist: $e';
+    }
   }
 
 }

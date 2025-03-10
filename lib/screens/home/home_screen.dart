@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../models/event.dart';
 import '../../models/workshop.dart';
 import '../../widgets/event_card/event_card.dart';
@@ -13,33 +15,125 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final DatabaseService _databaseService = DatabaseService();
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.elasticOut,
+    );
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _buildAppBar(),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {}); // Trigger rebuild to refresh streams
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: ProgramInfoCard(),
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          _buildSliverAppBar(),
+          SliverToBoxAdapter(
+            child: RefreshIndicator(
+              onRefresh: _refreshContent,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeaderSection(),
+                  _buildTodayEvents(),
+                  _buildUpcomingEvents(),
+                  _buildWorkshopsAndMore(),
+                ],
               ),
-              _buildTodayEvents(),
-              _buildUpcomingEvents(),
-              _buildWorkshopsAndMore(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshContent() async {
+    // Implement refresh logic
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() {});
+  }
+
+  Widget _buildHeaderSection() {
+    return ScaleTransition(
+      scale: _animation,
+      child: const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: ProgramInfoCard(),
+      ),
+    );
+  }
+
+  SliverAppBar _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 200.0,
+      floating: false,
+      pinned: true,
+      flexibleSpace: FlexibleSpaceBar(
+        title: Text(
+          'ACC Events',
+          style: TextStyle(
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                blurRadius: 10.0,
+                color: Colors.black45,
+                offset: const Offset(2.0, 2.0),
+              ),
             ],
           ),
         ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/event_background.png',
+              fit: BoxFit.scaleDown,
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.7),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search, color: Colors.white),
+          onPressed: () => _showSearchDialog(context),
+        ),
+      ],
     );
   }
 
@@ -51,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'assets/acc_logo.png',
             height: 40,
             errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.event),
+                const Icon(Icons.event),
           ),
           const SizedBox(width: 8),
           const Text('ACC Events'),
@@ -75,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildEventShimmer();
         }
 
         final events = snapshot.data ?? [];
@@ -84,35 +178,65 @@ class _HomeScreenState extends State<HomeScreen> {
           return _buildEmptyStateWidget("No events today");
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                "Today's Events",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+        return AnimationLimiter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  "Today's Events",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
-            ),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                return EventCard(
-                  event: events[index],
-                  onTap: () => _navigateToEventDetails(events[index]),
-                  onRegister: () => _registerForEvent(events[index]),
-                );
-              },
-            ),
-          ],
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  return AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: EventCard(
+                          event: events[index],
+                          onTap: () => _navigateToEventDetails(events[index]),
+                          onRegister: () => _registerForEvent(events[index]),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildEventShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 3,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              height: 100,
+              color: Colors.white,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -125,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildEventShimmer();
         }
 
         final events = snapshot.data ?? [];
@@ -134,32 +258,42 @@ class _HomeScreenState extends State<HomeScreen> {
           return _buildEmptyStateWidget("No upcoming events");
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Upcoming Events',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+        return AnimationLimiter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Upcoming Events',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                return EventCard(
-                  event: events[index],
-                  onTap: () => _navigateToEventDetails(events[index]),
-                  onRegister: () => _registerForEvent(events[index]),
-                );
-              },
-            ),
-          ],
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  return AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      horizontalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: EventCard(
+                          event: events[index],
+                          onTap: () => _navigateToEventDetails(events[index]),
+                          onRegister: () => _registerForEvent(events[index]),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -174,41 +308,111 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return _buildWorkshopShimmer();
         }
 
         final workshops = snapshot.data ?? [];
 
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Workshops and More',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        if (workshops.isEmpty) {
+          return _buildEmptyStateWidget("No workshops available");
+        }
+
+        return AnimationLimiter(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: const Offset(0, 3),
                 ),
-              ),
-              const SizedBox(height: 12),
-              if (workshops.isEmpty)
-                const Text('No workshops available')
-              else
-                ...workshops.map((workshop) => _buildWorkshopItem(
-                  workshop.title,
-                  workshop.status,
-                  workshop.schedule,
-                )),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Workshops and More',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                ...List.generate(
+                  workshops.length,
+                  (index) => AnimationConfiguration.staggeredList(
+                    position: index,
+                    duration: const Duration(milliseconds: 375),
+                    child: SlideAnimation(
+                      verticalOffset: 50.0,
+                      child: FadeInAnimation(
+                        child: _buildWorkshopItem(
+                          workshops[index].title,
+                          workshops[index].status,
+                          workshops[index].schedule,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildWorkshopShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 200,
+              height: 24,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(
+              3,
+              (index) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: 16,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 150,
+                      height: 16,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -222,10 +426,24 @@ class _HomeScreenState extends State<HomeScreen> {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
+              fontSize: 16,
             ),
           ),
-          Text(status),
-          Text('Date: $schedule'),
+          const SizedBox(height: 4),
+          Text(
+            status,
+            style: TextStyle(
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Date: $schedule',
+            style: TextStyle(
+              color: Colors.blue[700],
+            ),
+          ),
+          const Divider(),
         ],
       ),
     );
@@ -233,21 +451,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildErrorWidget(String message) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          message,
-          style: const TextStyle(color: Colors.red),
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red[300],
+            size: 60,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.red[300],
+              fontSize: 16,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyStateWidget(String message) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(message),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.event_busy,
+            color: Colors.grey[400],
+            size: 60,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
+            ),
+          ),
+        ],
       ),
     );
   }
