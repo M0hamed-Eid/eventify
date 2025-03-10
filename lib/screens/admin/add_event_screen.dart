@@ -665,17 +665,16 @@ class _AddEventScreenState extends State<AddEventScreen> {
         );
 
         // Show loading indicator
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => const Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-
         if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+
 
         // Perform database operation
         if (widget.event == null) {
@@ -694,7 +693,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
         // Pop the loading dialog
         Navigator.of(context).pop();
 
-        // Show success message and return
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(widget.event == null
@@ -704,14 +703,17 @@ class _AddEventScreenState extends State<AddEventScreen> {
           ),
         );
 
-        Navigator.of(context).pop(true); // Return success result
+
+        // Exit the screen
+        if (mounted) {
+          Navigator.of(context).pop(); // This will return to the previous screen
+        }
 
       } catch (e) {
         if (!mounted) return;
 
         // Pop the loading dialog if it's showing
         Navigator.of(context).pop();
-
 
         print('Error submitting form: $e');
         ScaffoldMessenger.of(context).showSnackBar(
