@@ -4,9 +4,9 @@ import 'package:shimmer/shimmer.dart';
 import '../../models/event.dart';
 import '../../models/workshop.dart';
 import '../../widgets/event_card/event_card.dart';
-import '../../widgets/program_info_card.dart';
 import '../../services/database_service.dart';
 import '../events/event_details_screen.dart';
+import 'event_search_delegate.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,149 +15,57 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   final DatabaseService _databaseService = DatabaseService();
-  late AnimationController _animationController;
-  late Animation<double> _animation;
   final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.elasticOut,
-    );
-
-    _animationController.forward();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: RefreshIndicator(
-              onRefresh: _refreshContent,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeaderSection(),
-                  _buildTodayEvents(),
-                  _buildUpcomingEvents(),
-                  _buildWorkshopsAndMore(),
-                ],
-              ),
-            ),
+      appBar: AppBar(
+        title: const Text('ACC Events'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => _showSearchDialog(context),
           ),
         ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshContent,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Today\'s Events'),
+              _buildTodayEvents(),
+              _buildSectionTitle('Upcoming Events'),
+              _buildUpcomingEvents(),
+              _buildSectionTitle('Workshops and More'),
+              _buildWorkshopsAndMore(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
   Future<void> _refreshContent() async {
-    // Implement refresh logic
     await Future.delayed(const Duration(seconds: 2));
     setState(() {});
-  }
-
-  Widget _buildHeaderSection() {
-    return ScaleTransition(
-      scale: _animation,
-      child: const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: ProgramInfoCard(),
-      ),
-    );
-  }
-
-  SliverAppBar _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 200.0,
-      floating: false,
-      pinned: true,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          'ACC Events',
-          style: TextStyle(
-            color: Colors.white,
-            shadows: [
-              Shadow(
-                blurRadius: 10.0,
-                color: Colors.black45,
-                offset: const Offset(2.0, 2.0),
-              ),
-            ],
-          ),
-        ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/event_background.png',
-              fit: BoxFit.scaleDown,
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.7),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, color: Colors.white),
-          onPressed: () => _showSearchDialog(context),
-        ),
-      ],
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Row(
-        children: [
-          Image.asset(
-            'assets/acc_logo.png',
-            height: 40,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.event),
-          ),
-          const SizedBox(width: 8),
-          const Text('ACC Events'),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _showSearchDialog(context),
-        ),
-      ],
-    );
   }
 
   Widget _buildTodayEvents() {
@@ -179,40 +87,26 @@ class _HomeScreenState extends State<HomeScreen>
         }
 
         return AnimationLimiter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  "Today's Events",
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 375),
-                    child: SlideAnimation(
-                      verticalOffset: 50.0,
-                      child: FadeInAnimation(
-                        child: EventCard(
-                          event: events[index],
-                          onTap: () => _navigateToEventDetails(events[index]),
-                          onRegister: () => _registerForEvent(events[index]),
-                        ),
-                      ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: events.length,
+            itemBuilder: (context, index) {
+              return AnimationConfiguration.staggeredList(
+                position: index,
+                duration: const Duration(milliseconds: 375),
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: EventCard(
+                      event: events[index],
+                      onTap: () => _navigateToEventDetails(events[index]),
+                      onRegister: () => _registerForEvent(events[index]),
                     ),
-                  );
-                },
-              ),
-            ],
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -259,40 +153,26 @@ class _HomeScreenState extends State<HomeScreen>
         }
 
         return AnimationLimiter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Upcoming Events',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  return AnimationConfiguration.staggeredList(
-                    position: index,
-                    duration: const Duration(milliseconds: 375),
-                    child: SlideAnimation(
-                      horizontalOffset: 50.0,
-                      child: FadeInAnimation(
-                        child: EventCard(
-                          event: events[index],
-                          onTap: () => _navigateToEventDetails(events[index]),
-                          onRegister: () => _registerForEvent(events[index]),
-                        ),
-                      ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: events.length,
+            itemBuilder: (context, index) {
+              return AnimationConfiguration.staggeredList(
+                position: index,
+                duration: const Duration(milliseconds: 375),
+                child: SlideAnimation(
+                  horizontalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: EventCard(
+                      event: events[index],
+                      onTap: () => _navigateToEventDetails(events[index]),
+                      onRegister: () => _registerForEvent(events[index]),
                     ),
-                  );
-                },
-              ),
-            ],
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -319,43 +199,58 @@ class _HomeScreenState extends State<HomeScreen>
 
         return AnimationLimiter(
           child: Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue[50]!,
+                  Colors.blue[100]!,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.blue[200]!.withOpacity(0.5),
                   spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: const Offset(0, 3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Workshops and More',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Workshops & Programs',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[900],
+                        ),
                       ),
+                      Icon(
+                        Icons.workspace_premium,
+                        color: Colors.blue[700],
+                        size: 30,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
                 ...List.generate(
                   workshops.length,
-                  (index) => AnimationConfiguration.staggeredList(
+                      (index) => AnimationConfiguration.staggeredList(
                     position: index,
                     duration: const Duration(milliseconds: 375),
                     child: SlideAnimation(
                       verticalOffset: 50.0,
                       child: FadeInAnimation(
-                        child: _buildWorkshopItem(
-                          workshops[index].title,
-                          workshops[index].status,
-                          workshops[index].schedule,
-                        ),
+                        child: _buildWorkshopItem(workshops[index], index),
                       ),
                     ),
                   ),
@@ -365,6 +260,204 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildWorkshopItem(Workshop workshop, int index) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _getWorkshopColor(index),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _getWorkshopIcon(workshop.status),
+            color: Colors.white,
+          ),
+        ),
+        title: Text(
+          workshop.title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              workshop.status,
+              style: TextStyle(
+                color: _getStatusColor(workshop.status),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 14,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  workshop.schedule,
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Icon(
+          Icons.chevron_right,
+          color: Colors.blue[700],
+        ),
+        onTap: () {
+          // Navigate to workshop details or show more info
+          _showWorkshopDetailsBottomSheet(workshop);
+        },
+      ),
+    );
+  }
+
+  Color _getWorkshopColor(int index) {
+    final colors = [
+      Colors.blue[700],
+      Colors.green[700],
+      Colors.purple[700],
+      Colors.orange[700],
+      Colors.teal[700],
+    ];
+    return colors[index % colors.length]!;
+  }
+
+  IconData _getWorkshopIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'upcoming':
+        return Icons.event_available;
+      case 'ongoing':
+        return Icons.play_circle_filled;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.workspace_premium;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'upcoming':
+        return Colors.orange;
+      case 'ongoing':
+        return Colors.green;
+      case 'completed':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showWorkshopDetailsBottomSheet(Workshop workshop) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  workshop.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 16),
+                _buildDetailRow(
+                  Icons.info_outline,
+                  'Status',
+                  workshop.status,
+                ),
+                _buildDetailRow(
+                  Icons.calendar_today,
+                  'Schedule',
+                  workshop.schedule,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Add registration or more details logic
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: const Text('Learn More'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blue[700]),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -390,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(height: 12),
             ...List.generate(
               3,
-              (index) => Padding(
+                  (index) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,39 +505,6 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildWorkshopItem(String title, String status, String schedule) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            status,
-            style: TextStyle(
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Date: $schedule',
-            style: TextStyle(
-              color: Colors.blue[700],
-            ),
-          ),
-          const Divider(),
-        ],
       ),
     );
   }
@@ -538,96 +598,4 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-// Add this class for search functionality
-class EventSearchDelegate extends SearchDelegate {
-  final DatabaseService _databaseService;
-
-  EventSearchDelegate(this._databaseService);
-
-  @override
-  List<Widget> buildActions(BuildContext context) {
-    return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
-    ];
-  }
-
-  @override
-  Widget buildLeading(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    return FutureBuilder<List<Event>>(
-      future: _databaseService.searchEvents(query),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final events = snapshot.data ?? [];
-
-        if (events.isEmpty) {
-          return const Center(child: Text('No events found'));
-        }
-
-        return ListView.builder(
-          itemCount: events.length,
-          itemBuilder: (context, index) {
-            return EventCard(
-              event: events[index],
-              onTap: () {
-                close(context, events[index]);
-              },
-              onRegister: () async {
-                // Handle registration
-                try {
-                  await _databaseService.registerForEvent(
-                    events[index].id,
-                    'currentUserId', // Replace with actual user ID
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Successfully registered for event'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to register: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return buildResults(context);
-  }
-}
+// The EventSearchDelegate remains the same as in the previous implementation
