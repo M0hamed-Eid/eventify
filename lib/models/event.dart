@@ -23,7 +23,7 @@ class Event {
 
   final DateTime? endDateTime;
   final List<String> requirements;
-  final String? applicationDeadline;
+  final DateTime? applicationDeadline;
   final bool requiresRegistration;
   final String? targetAudience;
   final List<String> technicalRequirements;
