@@ -106,13 +106,177 @@ class _AddEventScreenState extends State<AddEventScreen> {
     'Stable internet connection',
     'Working microphone and camera',
   ];
-  final List<String> _programEtiquette = [
-    'Be on time',
-    'Keep microphone muted unless speaking',
-    'Use chat for questions',
-    'Maintain professional conduct',
-  ];
   final List<String> _requirements = [];
+
+  // Update the _programEtiquette list in initState or class declaration
+  final List<String> _programEtiquette = [
+    'Be on time and do not disrupt the session by joining late.',
+    'Follow instructions from the host on how and when to ask questions.',
+    'Keep microphones muted unless asked to speak.',
+    'Give full attention to the speaker and avoid distractions.',
+    'Turn video off if internet connection is unstable.',
+    'Maintain open and respectful dialogue.',
+    'Interrupting speakers or participants may lead to removal from the session.',
+  ];
+
+// Add a new method to show detailed program etiquette
+  void _showProgramEtiquetteDetails() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  Center(
+                    child: Text(
+                      'Program Etiquette Guidelines',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEtiquetteSection(
+                    'Technical Requirements',
+                    [
+                      'All online programs will be conducted via Zoom unless otherwise stated.',
+                      'Log into the link provided in the confirmation email at least 15 minutes in advance.',
+                      'Test connection, including audio and video capabilities.',
+                      'If a computer is not available, log in using a mobile device.',
+                      'Use the first and last name as registered for the program.',
+                      'Your name and image will be visible to other participants.',
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEtiquetteSection(
+                    'Program Participation',
+                    [
+                      'Be on time and do not disrupt the session by joining late.',
+                      'Follow instructions from the host on how and when to ask questions.',
+                      'Keep microphones muted unless asked to speak.',
+                      'Give full attention to the speaker and avoid distractions.',
+                      'Turn video off if internet connection is unstable.',
+                      'Maintain open and respectful dialogue.',
+                      'Interrupting speakers or participants may lead to removal from the session.',
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEtiquetteSection(
+                    'Additional Notes',
+                    [
+                      'All opinions expressed during the program are those of the speaker.',
+                      'Opinions do not necessarily represent the American Center Cairo or U.S. Embassy.',
+                      'English language programs are limited to participants who speak English as a second language.',
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+// Helper method to build etiquette sections
+  Widget _buildEtiquetteSection(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => _buildEtiquetteItem(item)),
+      ],
+    );
+  }
+
+// Helper method to build individual etiquette items
+  Widget _buildEtiquetteItem(String item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• ',
+            style: TextStyle(
+              color: Colors.blue[700],
+              fontSize: 16,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              item,
+              style: const TextStyle(
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildProgramEtiquette() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Program Etiquette',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _showProgramEtiquetteDetails,
+                  child: Text(
+                    'View Details',
+                    style: TextStyle(color: Colors.blue[700]),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildRequirementsList(
+              'Program Rules',
+              _programEtiquette,
+              'Add Rule',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // Date and Time
   DateTime? _selectedDate;
@@ -265,6 +429,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       _buildLocationCard(),
                       const SizedBox(height: 16),
                       _buildRegistrationCard(),
+                      const SizedBox(height: 16),
+                      _buildProgramEtiquette(),
                       const SizedBox(height: 16),
                       _buildAdditionalDetailsCard(),
                     ],
