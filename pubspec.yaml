@@ -72,7 +72,17 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_native_splash:
 
+# Flutter Native Splash configuration
+flutter_native_splash:
+  color: "#FFFFFF"  # Background color of the splash screen
+  image: "assets/acc_logo.png"  # Path to your splash screen image (optional)
+  android: true  # Enable splash screen for Android
+  ios: true  # Enable splash screen for iOS
+  android_12:
+    color: "#FFFFFF"  # Background color for Android 12+ (optional)
+    image: "assets/acc_logo.png"  # Splash image for Android 12+ (optional)
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -88,6 +98,8 @@ flutter:
   assets:
     - assets/
   #   - images/a_dot_ham.jpeg
+
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

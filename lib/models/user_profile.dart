@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eventify/models/event.dart';
 
 class UserProfile {
@@ -6,7 +7,7 @@ class UserProfile {
   final String displayName;
   final String? photoURL;
   final String membershipStatus;
-  final List<Event> savedEvents;
+  final List<String> savedEvents; // Store event IDs instead of Event objects
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -23,35 +24,40 @@ class UserProfile {
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      uid: json['id'],
+      uid: json['id'] ?? json['uid'], // Use 'uid' or 'id' depending on your Firestore structure
       email: json['email'] ?? '',
       displayName: json['full_name'] ?? '',
       photoURL: json['avatar_url'],
       membershipStatus: json['membership_status'] ?? 'Non-Member',
-      savedEvents: List<Event>.from(json['saved_events'] ?? []),
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+      savedEvents: List<String>.from(json['savedEvents'] ?? []), // Store event IDs
+      createdAt: json['createdAt'] != null
+          ? (json['createdAt'] as Timestamp).toDate() // Convert Firestore Timestamp to DateTime
+          : DateTime.now(), // Default to current time if not provided
+      updatedAt: json['updatedAt'] != null
+          ? (json['updatedAt'] as Timestamp).toDate() // Convert Firestore Timestamp to DateTime
           : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'uid': uid,
       'email': email,
-      'full_name': displayName,
-      'avatar_url': photoURL,
-      'membership_status': membershipStatus,
-      'saved_events': savedEvents,
-      'updated_at': DateTime.now().toIso8601String(),
+      'displayName': displayName,
+      'photoURL': photoURL,
+      'membershipStatus': membershipStatus,
+      'savedEvents': savedEvents, // Store event IDs
+      'createdAt': Timestamp.fromDate(createdAt), // Convert DateTime to Firestore Timestamp
+      'updatedAt': updatedAt != null
+          ? Timestamp.fromDate(updatedAt!) // Convert DateTime to Firestore Timestamp
+          : null,
     };
   }
-
   UserProfile copyWith({
     String? displayName,
     String? photoURL,
     String? membershipStatus,
-    List<Event>? savedEvents,
+    List<String>? savedEvents,
   }) {
     return UserProfile(
       uid: uid,

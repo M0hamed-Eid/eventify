@@ -18,6 +18,26 @@ class DatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
 
+
+
+  Future<List<Event>> getEventsByIds(List<String> eventIds) async {
+    try {
+      if (eventIds.isEmpty) return [];
+
+      final eventsSnapshot = await _firestore
+          .collection('events')
+          .where(FieldPath.documentId, whereIn: eventIds)
+          .get();
+
+      return eventsSnapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      _logger.e('Error fetching events by IDs: $e');
+      throw 'Failed to fetch events by IDs: $e';
+    }
+  }
+
   Future<List<UserProfile>> getAllUsers() async {
     try {
       final usersSnapshot = await _firestore
@@ -382,7 +402,7 @@ class DatabaseService {
           .get();
 
       if (!doc.exists) {
-        throw 'Profile not found';
+        throw 'Profile not found for userId: $userId';
       }
 
       // Get saved events
@@ -395,24 +415,24 @@ class DatabaseService {
           .map((doc) => doc.data()['eventId'] as String)
           .toList();
 
-      // Convert Firestore Timestamps to DateTime or String
+      // Convert Firestore Timestamps to DateTime or provide default values
       final profileData = doc.data()!;
       final convertedData = {
         ...profileData,
-        'created_at': profileData['created_at'] is Timestamp
+        'created_at': profileData['created_at'] != null
             ? (profileData['created_at'] as Timestamp).toDate().toString() // Convert to String
-            : profileData['created_at'].toString(), // Fallback to String
-        'updated_at': profileData['updated_at'] is Timestamp
+            : DateTime.now().toString(), // Default value if null
+        'updated_at': profileData['updated_at'] != null
             ? (profileData['updated_at'] as Timestamp).toDate().toString() // Convert to String
-            : profileData['updated_at'].toString(), // Fallback to String
+            : DateTime.now().toString(), // Default value if null
         'id': doc.id,
         'saved_events': savedEventIds,
       };
 
       return UserProfile.fromJson(convertedData);
     } catch (e) {
-      _logger.e('Error fetching user profile: $e');
-      throw 'Error fetching user profile: $e';
+      _logger.e('Error fetching user profile for userId: $userId: $e');
+      throw 'Error fetching user profile for userId: $userId: $e';
     }
   }
 
@@ -454,8 +474,9 @@ class DatabaseService {
     });
   }
 
-  Future<void> updateUserProfile(String userId, Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateUserProfile(String userId, Map<String, dynamic> data) async {
     try {
+      // Update the profile
       await _firestore
           .collection('profiles')
           .doc(userId)
@@ -463,8 +484,12 @@ class DatabaseService {
         ...data,
         'updated_at': FieldValue.serverTimestamp(),
       });
+
+      // Fetch and return the updated profile
+      final updatedDoc = await _firestore.collection('profiles').doc(userId).get();
+      return updatedDoc.data() ?? {};
     } catch (e) {
-      print(e.toString());      _logger.e('Error updating profile: $e');
+      _logger.e('Error updating profile for userId: $userId: $e');
       throw 'Error updating profile: $e';
     }
   }
@@ -496,6 +521,23 @@ class DatabaseService {
     }
   }
 
+  Future<void> ensureUserProfileExists(String userId, Map<String, dynamic> initialData) async {
+    try {
+      final doc = await _firestore
+          .collection('profiles')
+          .doc(userId)
+          .get();
+
+      if (!doc.exists) {
+        await createUserProfile(userId, initialData);
+        _logger.i('Created new profile for userId: $userId');
+      }
+    } catch (e) {
+      _logger.e('Error ensuring user profile exists for userId: $userId: $e');
+      throw 'Error ensuring user profile exists for userId: $userId: $e';
+    }
+  }
+
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
     try {
       await _firestore
@@ -514,19 +556,12 @@ class DatabaseService {
 
   Future<void> removeSavedEvent(String userId, String eventId) async {
     try {
-      await _firestore
-          .collection('saved_events')
-          .where('userId', isEqualTo: userId)
-          .where('eventId', isEqualTo: eventId)
-          .get()
-          .then((snapshot) {
-        for (var doc in snapshot.docs) {
-          doc.reference.delete();
-        }
+      await _firestore.collection('profiles').doc(userId).update({
+        'savedEvents': FieldValue.arrayRemove([eventId]),
       });
     } catch (e) {
       _logger.e('Error removing saved event: $e');
-      throw 'Error removing saved event: $e';
+      throw 'Failed to remove saved event: $e';
     }
   }
 

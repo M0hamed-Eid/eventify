@@ -16,7 +16,6 @@ class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
 
-
   User? get currentUser => _auth.currentUser;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -64,6 +63,9 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Create profile in the profiles collection
+      await createProfile(credential.user!.uid, fullName, email);
+
       // Update display name
       await credential.user!.updateDisplayName(fullName);
 
@@ -71,6 +73,22 @@ class AuthService {
     } catch (e) {
       _logger.e('Error during signup: $e');
       throw 'Error during signup: $e';
+    }
+  }
+
+  Future<void> createProfile(String userId, String fullName, String email) async {
+    try {
+      await _firestore.collection('profiles').doc(userId).set({
+        'fullName': fullName,
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'saved_events': [], // Initialize with an empty list of saved events
+      });
+      _logger.d('Profile created successfully for user: $userId');
+    } catch (e) {
+      _logger.e('Error creating profile: $e');
+      throw 'Error creating profile: $e';
     }
   }
 
@@ -137,7 +155,7 @@ class AuthService {
       if (userId == null) throw 'User not authenticated';
 
       final docSnapshot = await _firestore
-          .collection('users')
+          .collection('profiles')
           .doc(userId)
           .get();
 
@@ -158,7 +176,7 @@ class AuthService {
       if (userId == null) throw 'User not authenticated';
 
       await _firestore
-          .collection('users')
+          .collection('profiles')
           .doc(userId)
           .update({
         ...data,
@@ -221,6 +239,9 @@ class AuthService {
         'role': 'user',
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Create profile in the profiles collection
+      await createProfile(userCredential.user!.uid, userCredential.user!.displayName ?? '', userCredential.user!.email ?? '');
 
     } catch (e) {
       _logger.e('Error signing in with Google: $e');

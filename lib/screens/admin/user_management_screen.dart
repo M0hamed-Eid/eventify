@@ -160,49 +160,52 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       );
     }
 
-    return AnimationLimiter(
-      child: ListView.builder(
-        itemCount: _filteredUsers.length,
-        itemBuilder: (context, index) {
-          final user = _filteredUsers[index];
-          return AnimationConfiguration.staggeredList(
-            position: index,
-            duration: const Duration(milliseconds: 375),
-            child: SlideAnimation(
-              verticalOffset: 50.0,
-              child: FadeInAnimation(
-                child: Slidable(
-                  key: Key(user.uid),
-                  startActionPane: ActionPane(
-                    motion: const ScrollMotion(),
-                    children: [
-                      SlidableAction(
-                        onPressed: (context) => _editUser(user),
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        icon: Icons.edit,
-                        label: 'Edit',
-                      ),
-                    ],
+    return RefreshIndicator(
+      onRefresh: _loadUsers,
+      child: AnimationLimiter(
+        child: ListView.builder(
+          itemCount: _filteredUsers.length,
+          itemBuilder: (context, index) {
+            final user = _filteredUsers[index];
+            return AnimationConfiguration.staggeredList(
+              position: index,
+              duration: const Duration(milliseconds: 375),
+              child: SlideAnimation(
+                verticalOffset: 50.0,
+                child: FadeInAnimation(
+                  child: Slidable(
+                    key: Key(user.uid),
+                    startActionPane: ActionPane(
+                      motion: const ScrollMotion(),
+                      children: [
+                        SlidableAction(
+                          onPressed: (context) => _editUser(user),
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          icon: Icons.edit,
+                          label: 'Edit',
+                        ),
+                      ],
+                    ),
+                    endActionPane: ActionPane(
+                      motion: const ScrollMotion(),
+                      children: [
+                        SlidableAction(
+                          onPressed: (context) => _deleteUser(user),
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          icon: Icons.delete,
+                          label: 'Delete',
+                        ),
+                      ],
+                    ),
+                    child: _buildUserListTile(user),
                   ),
-                  endActionPane: ActionPane(
-                    motion: const ScrollMotion(),
-                    children: [
-                      SlidableAction(
-                        onPressed: (context) => _deleteUser(user),
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        icon: Icons.delete,
-                        label: 'Delete',
-                      ),
-                    ],
-                  ),
-                  child: _buildUserListTile(user),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -348,7 +351,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   void _showAddUserBottomSheet() {
-    // Implement user creation logic
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -370,11 +372,41 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // Add user creation form fields
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Membership Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: ['Active', 'Pending', 'Inactive']
+                    .map((status) => DropdownMenuItem(
+                  value: status,
+                  child: Text(status),
+                ))
+                    .toList(),
+                onChanged: (value) {
+                  // Handle membership status selection
+                },
+              ),
+              const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   // Implement user creation logic
                   Navigator.pop(context);
+                  _loadUsers(); // Refresh the user list
                 },
                 child: const Text('Create User'),
               ),

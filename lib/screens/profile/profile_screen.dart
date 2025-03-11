@@ -271,7 +271,7 @@ import 'package:flutter/material.dart';
         ),
       );
     }
-  
+
     Widget _buildSavedEvents() {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,34 +294,66 @@ import 'package:flutter/material.dart';
               ),
             )
           else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _user?.savedEvents.length ?? 0,
-              itemBuilder: (context, index) {
-                final event = _user!.savedEvents[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: ListTile(
-                    leading: Icon(
-                      event.isOnline ? Icons.video_call : Icons.event,
-                      color: const Color(0xFF1B3C8F),
-                    ),
-                    title: Text(event.title),
-                    subtitle: Text(
-                      '${_formatDate(event.dateTime)} • ${event.timeRange}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _removeSavedEvent(event),
-                    ),
-                    onTap: () => _navigateToEventDetails(event),
-                  ),
-                );
+            FutureBuilder<List<Event>>(
+              future: _fetchSavedEvents(_user!.savedEvents),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No saved events'));
+                } else {
+                  final events = snapshot.data!;
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: events.length,
+                    itemBuilder: (context, index) {
+                      final event = events[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: ListTile(
+                          leading: Icon(
+                            event.isOnline ? Icons.video_call : Icons.event,
+                            color: const Color(0xFF1B3C8F),
+                          ),
+                          title: Text(event.title),
+                          subtitle: Text(
+                            '${_formatDate(event.dateTime)} • ${event.timeRange}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => _removeSavedEvent(event),
+                          ),
+                          onTap: () => _navigateToEventDetails(event),
+                        ),
+                      );
+                    },
+                  );
+                }
               },
             ),
         ],
       );
+    }
+
+    Future<List<Event>> _fetchSavedEvents(List<String> eventIds) async {
+      try {
+        final events = await _databaseService.getEventsByIds(eventIds);
+        return events;
+      } catch (e) {
+        throw 'Failed to fetch saved events: $e';
+      }
+    }
+
+    Future<void> _removeSavedEvent(Event event) async {
+      try {
+        await _databaseService.removeSavedEvent(_user!.uid, event.id);
+        await _loadUserProfile(); // Reload profile to update saved events
+      } catch (e) {
+        _showErrorSnackBar('Failed to remove event: $e');
+      }
     }
   
     Widget _buildActionButtons() {
@@ -402,16 +434,8 @@ import 'package:flutter/material.dart';
         _showErrorSnackBar('Error managing membership: $e');
       }
     }
-  
-    Future<void> _removeSavedEvent(Event event) async {
-      try {
-        await _databaseService.removeSavedEvent(_user!.uid, event.id);
-        await _loadUserProfile(); // Reload profile to update saved events
-      } catch (e) {
-        _showErrorSnackBar('Failed to remove event: $e');
-      }
-    }
-  
+
+
     void _navigateToEventDetails(Event event) {
       Navigator.push(
         context,
