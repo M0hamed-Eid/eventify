@@ -501,7 +501,17 @@ class DatabaseService {
       final fileName = 'avatar.$fileExt';
       final filePath = 'avatars/$userId/$fileName';
 
-      // Upload to Supabase storage
+      // Delete the existing file if it exists
+      try {
+        await _supabase.storage
+            .from('avatars')
+            .remove(['avatars/$userId/$fileName']);
+      } catch (e) {
+        // Ignore errors if the file doesn't exist
+        _logger.d('No existing file to delete: $e');
+      }
+
+      // Upload the new file
       await _supabase.storage
           .from('avatars')
           .uploadBinary(filePath, bytes);
