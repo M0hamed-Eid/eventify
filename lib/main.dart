@@ -1,3 +1,5 @@
+import 'package:eventify/providers/language_provider.dart';
+import 'package:eventify/providers/theme_provider.dart';
 import 'package:eventify/screens/auth/auth_wrapper.dart';
 import 'package:eventify/screens/main/main_screen.dart';
 import 'package:eventify/services/notification_service.dart';
@@ -20,33 +22,47 @@ void main() async {
   // Initialize Supabase
   await Supabase.initialize(
     // SUPABASE_URL
-    url: Env.supabaseUrl ,
+    url: Env.supabaseUrl,
     // Project API Keys
-    anonKey: Env.supabaseAnonKey ,
+    anonKey: Env.supabaseAnonKey,
   );
 
   // Initialize notifications
   await NotificationService().initialize();
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => DatabaseProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => LanguageProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-        providers: [
-        ChangeNotifierProvider(create: (_) => DatabaseProvider()),
-    ],
-    child: MaterialApp(
+
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Events App',
-      theme: AppTheme.theme,
+      theme: themeProvider.getTheme(),
+      darkTheme: ThemeData.dark().copyWith(
+        primaryColor: themeProvider.primaryColor,
+        colorScheme: ColorScheme.dark(primary: themeProvider.primaryColor),
+      ),
+      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      locale: languageProvider.locale,
       home: const AuthWrapper(),
       onGenerateRoute: AppRoutes.onGenerateRoute,
-    ));
+    );
   }
 }

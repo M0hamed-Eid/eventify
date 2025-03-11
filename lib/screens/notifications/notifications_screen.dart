@@ -40,7 +40,6 @@ class NotificationsScreen extends StatelessWidget {
           }
 
           final notifications = snapshot.data ?? [];
-          print("notiiiiiii$notifications");
           if (notifications.isEmpty) {
             return _buildEmptyView();
           }
