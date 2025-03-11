@@ -18,6 +18,153 @@ class DatabaseService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final Logger _logger = Logger();
 
+  Future<List<UserProfile>> getAllUsers() async {
+    try {
+      final usersSnapshot = await _firestore
+          .collection('profiles')
+          .get();
+
+      return usersSnapshot.docs
+          .map((doc) => UserProfile.fromJson({
+        ...doc.data(),
+        'id': doc.id,
+      }))
+          .toList();
+    } catch (e) {
+      _logger.e('Error fetching users: $e');
+      throw 'Failed to fetch users: $e';
+    }
+  }
+
+  // Get event registration trends
+  Future<Map<String, int>> getEventRegistrationTrends() async {
+    try {
+      final now = DateTime.now();
+      final trends = <String, int>{};
+
+      for (int i = 0; i < 7; i++) {
+        final date = now.subtract(Duration(days: i));
+        final startOfDay = DateTime(date.year, date.month, date.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+
+        final eventsSnapshot = await _firestore
+            .collection('events')
+            .where('dateTime', isGreaterThanOrEqualTo: startOfDay)
+            .where('dateTime', isLessThan: endOfDay)
+            .get();
+
+        trends[DateFormat('MM-dd').format(date)] = eventsSnapshot.docs.length;
+      }
+
+      return trends;
+    } catch (e) {
+      _logger.e('Error fetching event registration trends: $e');
+      throw 'Failed to fetch event registration trends: $e';
+    }
+  }
+
+  // Get user registration trends
+  Future<Map<String, int>> getUserRegistrationTrends() async {
+    try {
+      final now = DateTime.now();
+      final trends = <String, int>{};
+
+      // Last 7 days registration count
+      for (int i = 0; i < 7; i++) {
+        final date = now.subtract(Duration(days: i));
+        final startOfDay = DateTime(date.year, date.month, date.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+
+        final usersSnapshot = await _firestore
+            .collection('profiles')
+            .where('created_at', isGreaterThanOrEqualTo: startOfDay)
+            .where('created_at', isLessThan: endOfDay)
+            .get();
+
+        trends[DateFormat('MM-dd').format(date)] = usersSnapshot.docs.length;
+      }
+
+      return trends;
+    } catch (e) {
+      _logger.e('Error fetching user registration trends: $e');
+      throw 'Failed to fetch user registration trends: $e';
+    }
+  }
+
+// Get user distribution by various attributes
+  Future<Map<String, int>> getUserDistribution(String attribute) async {
+    try {
+      final usersSnapshot = await _firestore
+          .collection('profiles')
+          .get();
+
+      final distribution = <String, int>{};
+
+      for (var doc in usersSnapshot.docs) {
+        final value = doc.data()[attribute];
+        if (value != null) {
+          distribution[value] = (distribution[value] ?? 0) + 1;
+        }
+      }
+
+      return distribution;
+    } catch (e) {
+      _logger.e('Error fetching user distribution: $e');
+      throw 'Failed to fetch user distribution: $e';
+    }
+  }
+
+  Future<int> getTotalUsers() async {
+    try {
+      final usersSnapshot = await _firestore
+          .collection('profiles')
+          .get();
+
+      return usersSnapshot.docs.length;
+    } catch (e) {
+      _logger.e('Error fetching total users: $e');
+      throw 'Failed to fetch total users: $e';
+    }
+  }
+
+// Optional: If you want to get total users with additional filtering
+  Future<int> getActiveUsers() async {
+    try {
+      final usersSnapshot = await _firestore
+          .collection('profiles')
+          .where('status', isEqualTo: 'active') // Assuming you have a status field
+          .get();
+
+      return usersSnapshot.docs.length;
+    } catch (e) {
+      _logger.e('Error fetching active users: $e');
+      throw 'Failed to fetch active users: $e';
+    }
+  }
+
+// Optional: Get users by membership status
+  Future<int> getUsersByMembershipStatus(String status) async {
+    try {
+      final usersSnapshot = await _firestore
+          .collection('profiles')
+          .where('membershipStatus', isEqualTo: status)
+          .get();
+
+      return usersSnapshot.docs.length;
+    } catch (e) {
+      _logger.e('Error fetching users by membership status: $e');
+      throw 'Failed to fetch users by membership status: $e';
+    }
+  }
+
+// Stream version for real-time updates
+  Stream<int> getTotalUsersStream() {
+    return _firestore
+        .collection('profiles')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
   Future<bool> isUserRegisteredForEvent({
     required String eventId,
     required String userId,
@@ -651,10 +798,6 @@ class DatabaseService {
     return doc.exists ? Event.fromFirestore(doc) : null;
   }
 
-
-
-  // ------------------------------------------------------
-// lib/services/database_service.dart
 
   Stream<List<Event>> getTodayEvents() {
     final now = DateTime.now();

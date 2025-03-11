@@ -57,6 +57,9 @@ dependencies:
   flutter_animate:
   url_launcher:
   salomon_bottom_bar:
+  charts_flutter:
+  fl_chart:
+  flutter_slidable:
 
 
 dev_dependencies:

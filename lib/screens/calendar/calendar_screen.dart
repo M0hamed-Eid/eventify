@@ -147,8 +147,8 @@ class _CalendarScreenState extends State<CalendarScreen> with SingleTickerProvid
           fit: StackFit.expand,
           children: [
             Image.asset(
-              'assets/calendar_background.jpg', // Add a nice calendar background
-              fit: BoxFit.cover,
+              'assets/calendar_background.png',
+              fit: BoxFit.contain,
             ),
             DecoratedBox(
               decoration: BoxDecoration(

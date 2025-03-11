@@ -38,7 +38,7 @@ class FirebaseService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) =>
-        snapshot.docs.map((doc) => NotificationItem.fromFirestore(doc)).toList());
+        snapshot.docs.map((doc) => NotificationItem.fromFirestore(doc, isRead: false)).toList());
   }
 
   // Contact Messages
@@ -52,4 +52,6 @@ class FirebaseService {
     await ref.putFile(image);
     return await ref.getDownloadURL();
   }
+
+
 }

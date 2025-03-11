@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../admin/admin_dashboard.dart';
 import '../calendar/calendar_screen.dart';
+import '../calendar/event_calendar_screen.dart';
 import '../home/home_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
@@ -90,7 +91,7 @@ class _MainScreenState extends State<MainScreen>
       NavigationItem(
         icon: Icons.calendar_today_rounded,
         label: 'Calendar',
-        screen: const CalendarScreen(),
+        screen: const EventCalendarScreen(),
         activeColor: Colors.green[700]!,
       ),
       NavigationItem(

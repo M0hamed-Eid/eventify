@@ -19,6 +19,7 @@ class Event {
   final List<String> guidelines;
   final String category;
   final String? series;
+  final int currentParticipants;
 
   final DateTime? endDateTime;
   final List<String> requirements;
@@ -31,7 +32,6 @@ class Event {
   final String? programType;
   final bool isCertificateAvailable;
   final String? certificateRequirements;
-
   final bool notificationSent;
   final DateTime? notificationSentAt;
 
@@ -53,6 +53,7 @@ class Event {
     required this.guidelines,
     required this.category,
     this.series,
+    this.currentParticipants = 0 , // Add this line
 
     this.endDateTime,
     this.requirements = const [],
@@ -94,6 +95,7 @@ class Event {
           : [],
       category: data['category'] ?? '',
       series: data['series'],
+      currentParticipants: data['currentParticipants'] ?? 0, // Add this line
       notificationSent: data['notificationSent'] ?? false,
       notificationSentAt: (data['notificationSentAt'] as Timestamp?)?.toDate(),
     );
@@ -118,7 +120,7 @@ class Event {
       'guidelines': guidelines,
       'category': category,
       'series': series,
-
+      'currentParticipants': currentParticipants,
       'notificationSent': notificationSent,
       'notificationSentAt': notificationSentAt != null ? Timestamp.fromDate(notificationSentAt!) : null,
     };
