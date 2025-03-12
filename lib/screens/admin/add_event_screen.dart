@@ -110,17 +110,29 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
   // Update the _programEtiquette list in initState or class declaration
   final List<String> _programEtiquette = [
-    'Be on time and do not disrupt the session by joining late.',
-    'Follow instructions from the host on how and when to ask questions.',
-    'Keep microphones muted unless asked to speak.',
-    'Give full attention to the speaker and avoid distractions.',
-    'Turn video off if internet connection is unstable.',
-    'Maintain open and respectful dialogue.',
-    'Interrupting speakers or participants may lead to removal from the session.',
+    'Technical Requirements',
+    'Program Participation Guidelines',
+    'Communication and Respect',
   ];
 
-// Add a new method to show detailed program etiquette
-  void _showProgramEtiquetteDetails() {
+  // New controllers and variables
+  final _minimumAgeController = TextEditingController();
+  List<String> _entryGuidelines = [
+    'Bring a valid national identity card, passport, or driver\'s license',
+    'Arrive at least 1 hour before the program start time',
+    'Clear security checkpoint',
+  ];
+  List<String> _securityRestrictions = [
+    'No electronics allowed',
+    'Only mobile phones can be checked at the gate',
+    'No lighters, sharp objects, or large bags',
+  ];
+  bool _requireConfirmationEmail = true;
+  bool _mediaConsent = true;
+
+
+  // Method to show entry guidelines details
+  void _showEntryGuidelinesDetails() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -129,7 +141,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       ),
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.7,
+          initialChildSize: 0.9,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
@@ -141,7 +153,123 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 children: [
                   Center(
                     child: Text(
-                      'Program Etiquette Guidelines',
+                      'Guidelines for Entering ACC',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEtiquetteSection(
+                    'General Guidelines',
+                    _entryGuidelines,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildEtiquetteSection(
+                    'Security Restrictions',
+                    _securityRestrictions,
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Add a new card for entry guidelines in your build method
+  Widget _buildEntryGuidelinesCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Entry Guidelines',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _showEntryGuidelinesDetails,
+                  child: Text(
+                    'View Details',
+                    style: TextStyle(color: Colors.blue[700]),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _minimumAgeController,
+              decoration: InputDecoration(
+                labelText: 'Minimum Age Requirement',
+                prefixIcon: const Icon(Icons.person),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('Require Confirmation Email'),
+              value: _requireConfirmationEmail,
+              onChanged: (value) {
+                setState(() {
+                  _requireConfirmationEmail = value;
+                });
+              },
+            ),
+            SwitchListTile(
+              title: const Text('Media Consent'),
+              subtitle: const Text('Allow photo/video recording'),
+              value: _mediaConsent,
+              onChanged: (value) {
+                setState(() {
+                  _mediaConsent = value;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+// Add a new method to show detailed program etiquette
+  void _showProgramEtiquetteDetails() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  Center(
+                    child: Text(
+                      'Guidelines for Online Programs',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -156,27 +284,28 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       'Test connection, including audio and video capabilities.',
                       'If a computer is not available, log in using a mobile device.',
                       'Use the first and last name as registered for the program.',
-                      'Your name and image will be visible to other participants.',
+                      'Your name and image will be visible to other participants during the session.',
                     ],
                   ),
                   const SizedBox(height: 16),
                   _buildEtiquetteSection(
-                    'Program Participation',
+                    'Program Participation Guidelines',
                     [
                       'Be on time and do not disrupt the session by joining late.',
                       'Follow instructions from the host on how and when to ask questions.',
-                      'Keep microphones muted unless asked to speak.',
+                      'Microphones must stay muted unless asked to speak.',
                       'Give full attention to the speaker and avoid distractions.',
-                      'Turn video off if internet connection is unstable.',
-                      'Maintain open and respectful dialogue.',
-                      'Interrupting speakers or participants may lead to removal from the session.',
+                      'Video can be turned off if the internet connection is unstable.',
                     ],
                   ),
                   const SizedBox(height: 16),
                   _buildEtiquetteSection(
-                    'Additional Notes',
+                    'Communication and Respect',
                     [
-                      'All opinions expressed during the program are those of the speaker.',
+                      'The ACC promotes open and respectful dialogue.',
+                      'Interrupting speakers or participants is disruptive.',
+                      'Disruptive behavior may lead to removal from the session without warning.',
+                      'All opinions expressed are those of the speaker.',
                       'Opinions do not necessarily represent the American Center Cairo or U.S. Embassy.',
                       'English language programs are limited to participants who speak English as a second language.',
                     ],
@@ -236,7 +365,6 @@ class _AddEventScreenState extends State<AddEventScreen> {
     );
   }
 
-
   Widget _buildProgramEtiquette() {
     return Card(
       elevation: 4,
@@ -252,7 +380,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Program Etiquette',
+                  'Program Guidelines',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -260,7 +388,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
                 TextButton(
                   onPressed: _showProgramEtiquetteDetails,
                   child: Text(
-                    'View Details',
+                    'View Full Guidelines',
                     style: TextStyle(color: Colors.blue[700]),
                   ),
                 ),
@@ -268,9 +396,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
             ),
             const SizedBox(height: 16),
             _buildRequirementsList(
-              'Program Rules',
+              'Key Guidelines',
               _programEtiquette,
-              'Add Rule',
+              'Add Guideline',
             ),
           ],
         ),
@@ -431,6 +559,8 @@ class _AddEventScreenState extends State<AddEventScreen> {
                       _buildRegistrationCard(),
                       const SizedBox(height: 16),
                       _buildProgramEtiquette(),
+                      const SizedBox(height: 16),
+                      _buildEntryGuidelinesCard(),
                       const SizedBox(height: 16),
                       _buildAdditionalDetailsCard(),
                     ],
@@ -1370,8 +1500,15 @@ class _AddEventScreenState extends State<AddEventScreen> {
         imageUrl: imageUrl,
         // Add the image URL
         applicationDeadline: _applicationDeadline,
-      );
 
+        // New fields
+        entryGuidelines: _entryGuidelines,
+        minimumAge: int.tryParse(_minimumAgeController.text),
+        securityRestrictions: _securityRestrictions,
+        requireConfirmationEmail: _requireConfirmationEmail,
+        mediaConsent: _mediaConsent,
+
+      );
       // Show loading indicator
       if (!mounted) return;
       showDialog(
