@@ -131,6 +131,7 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
   }
 
   Widget _buildEventsList(List<Event> events) {
+    print('num of events : ${events.length}');
     return ListView.builder(
       itemCount: events.length,
       itemBuilder: (context, index) {
@@ -165,7 +166,8 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: isPastEvent ? Colors.grey : Theme.of(context).primaryColor,
+                backgroundColor:
+                    isPastEvent ? Colors.grey : Theme.of(context).primaryColor,
                 child: Icon(
                   event.isOnline ? Icons.video_call : Icons.event,
                   color: Colors.white,
@@ -340,22 +342,22 @@ class _ManageEventsScreenState extends State<ManageEventsScreen> {
 
   Future<bool> _confirmDelete(BuildContext context, Event event) async {
     return await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('CANCEL'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Event'),
+            content: Text('Are you sure you want to delete "${event.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('CANCEL'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('DELETE'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
   }
 }

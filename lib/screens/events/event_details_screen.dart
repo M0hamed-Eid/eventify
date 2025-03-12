@@ -133,6 +133,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   _buildDescriptionSection(),
                   const SizedBox(height: 16),
                   _buildAdditionalDetails(),
+                  if (widget.event.minimumAge != null)
+                    _buildAgeRequirementSection(),
+                  if (widget.event.entryGuidelines.isNotEmpty)
+                    _buildEntryGuidelinesSection(),
+                  if (widget.event.securityRestrictions.isNotEmpty)
+                    _buildSecurityRestrictionsSection(),
                   const SizedBox(height: 24),
                   _buildRegistrationButton(),
                 ],
@@ -143,6 +149,98 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     );
   }
+
+  Widget _buildAgeRequirementSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Card(
+        elevation: 2,
+        child: ListTile(
+          leading: Icon(Icons.person, color: Colors.blue[700]),
+          title: Text(
+            'Age Requirement',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[900]),
+          ),
+          subtitle: Text(
+            'Minimum age: ${widget.event.minimumAge} years',
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntryGuidelinesSection() {
+    return ExpansionTile(
+      title: Text(
+        'Entry Guidelines',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.blue[900],
+        ),
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...widget.event.entryGuidelines.map((guideline) => _buildBulletPoint(guideline)),
+              if (widget.event.allowedIdentificationTypes.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Allowed Identification:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
+                ),
+                ...widget.event.allowedIdentificationTypes
+                    .map((id) => _buildBulletPoint(id)),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecurityRestrictionsSection() {
+    return ExpansionTile(
+      title: Text(
+        'Security Restrictions',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.red[900],
+        ),
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...widget.event.securityRestrictions
+                  .map((restriction) => _buildBulletPoint(restriction)),
+              if (widget.event.electronicRestrictions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Electronic Restrictions:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[700],
+                  ),
+                ),
+                ...widget.event.electronicRestrictions
+                    .map((electronic) => _buildBulletPoint(electronic)),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
 
   SliverAppBar _buildSliverAppBar() {
     return SliverAppBar(
@@ -299,14 +397,53 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Widget _buildAdditionalDetails() {
-    return ExpansionTile(
-      title: const Text('Additional Information'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.event.guidelines.isNotEmpty)
-          _buildInfoSection('Guidelines', widget.event.guidelines),
-        if (widget.event.requirements.isNotEmpty)
-          _buildInfoSection('Requirements', widget.event.requirements),
+        // Existing additional details
+        ExpansionTile(
+          title: const Text('Additional Information'),
+          children: [
+            if (widget.event.guidelines.isNotEmpty)
+              _buildInfoSection('Guidelines', widget.event.guidelines),
+            if (widget.event.requirements.isNotEmpty)
+              _buildInfoSection('Requirements', widget.event.requirements),
+
+            // New additional details
+            if (widget.event.requireConfirmationEmail)
+              _buildDetailRow(
+                Icons.email,
+                'Confirmation Email Required',
+              ),
+            if (widget.event.mediaConsent)
+              _buildDetailRow(
+                Icons.camera_alt,
+                'Media Recording Consent Requested',
+              ),
+          ],
+        ),
       ],
+    );
+  }
+
+  // Optional: Add a method to show media consent details
+  void _showMediaConsentDetails() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Media Consent'),
+        content: const Text(
+          'By participating in this event, you consent to being photographed or recorded. '
+              'These materials may be used for future public information programs and activities. '
+              'Content will not be used for commercial purposes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Understood'),
+          ),
+        ],
+      ),
     );
   }
 
