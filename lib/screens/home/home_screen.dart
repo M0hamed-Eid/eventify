@@ -1,3 +1,5 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:shimmer/shimmer.dart';
@@ -8,6 +10,7 @@ import '../../widgets/event_card/event_card.dart';
 import '../../services/database_service.dart';
 import '../event_details/event_details_screen.dart';
 import 'event_search_delegate.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,45 +19,55 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final DatabaseService _databaseService = DatabaseService();
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildCustomSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildQuickActionButtons(),
-                _buildSectionTitle('Today\'s Events'),
-                _buildTodayEvents(),
-                _buildSectionTitle('Upcoming Events'),
-                _buildUpcomingEvents(),
-                _buildSectionTitle('Workshops & Programs'),
-                _buildWorkshopsAndMore(),
-              ],
-            ),
-          ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          _buildCustomSliverAppBar(innerBoxIsScrolled),
         ],
+        body: _buildMainContent(),
       ),
     );
   }
 
-  Widget _buildCustomSliverAppBar() {
+
+  Widget _buildCustomSliverAppBar(bool innerBoxIsScrolled) {
     return SliverAppBar(
-      expandedHeight: 200.0,
+      expandedHeight: 250.0,
       floating: false,
       pinned: true,
+      snap: false,
+      elevation: 4,
       flexibleSpace: FlexibleSpaceBar(
+        centerTitle: true,
         title: Text(
           'ACC Events',
           style: TextStyle(
             color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
             shadows: [
               Shadow(
                 blurRadius: 10.0,
@@ -64,36 +77,506 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/event_background.png', // Add a background image
-              fit: BoxFit.scaleDown,
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.7),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        background: _buildFeaturedEventsCarousel(),
       ),
       actions: [
         IconButton(
           icon: const Icon(Icons.search),
           onPressed: () => _showSearchDialog(context),
         ),
+        IconButton(
+          icon: const Icon(Icons.notifications),
+          onPressed: () {
+            // Navigate to notifications screen
+          },
+        ),
       ],
     );
   }
+
+  Widget _buildFeaturedEventsCarousel() {
+    return StreamBuilder<List<Event>>(
+      stream: _databaseService.getUpcomingEvents(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _buildCarouselPlaceholder();
+        }
+
+        final featuredEvents = snapshot.data!;
+        return CarouselSlider.builder(
+          itemCount: featuredEvents.length,
+          itemBuilder: (context, index, realIndex) {
+            final event = featuredEvents[index];
+            return _buildFeaturedEventCard(event);
+          },
+          options: CarouselOptions(
+            height: 250,
+            autoPlay: true,
+            enlargeCenterPage: true,
+            viewportFraction: 0.8,
+            autoPlayInterval: const Duration(seconds: 5),
+          ),
+        );
+      },
+    );
+  }
+
+
+  Widget _buildCarouselPlaceholder() {
+    return CarouselSlider.builder(
+      itemCount: 3,
+      itemBuilder: (context, index, realIndex) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.grey[200]!,
+                Colors.grey[100]!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3),
+                spreadRadius: 1,
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Placeholder image
+              Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(15),
+                  ),
+                  color: Colors.grey[300],
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.image,
+                    color: Colors.grey[500],
+                    size: 50,
+                  ),
+                ),
+              ),
+
+              // Placeholder content
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: double.infinity,
+                        height: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: 200,
+                        height: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      options: CarouselOptions(
+        height: 250,
+        autoPlay: false,
+        enlargeCenterPage: true,
+        viewportFraction: 0.8,
+        enableInfiniteScroll: false,
+      ),
+    );
+  }
+
+  // More stylized placeholder
+  Widget _buildStylizedCarouselPlaceholder() {
+    return CarouselSlider.builder(
+      itemCount: 3,
+      itemBuilder: (context, index, realIndex) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.grey[200]!,
+                Colors.grey[100]!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3),
+                spreadRadius: 1,
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Placeholder image
+              Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(15),
+                  ),
+                  color: Colors.grey[300],
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.image,
+                    color: Colors.grey[500],
+                    size: 50,
+                  ),
+                ),
+              ),
+
+              // Placeholder content
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: double.infinity,
+                        height: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        width: 200,
+                        height: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      options: CarouselOptions(
+        height: 250,
+        autoPlay: false,
+        enlargeCenterPage: true,
+        viewportFraction: 0.8,
+        enableInfiniteScroll: false,
+      ),
+    );
+  }
+
+
+
+
+  Widget _buildFeaturedEventCard(Event event) {
+    return GestureDetector(
+      onTap: () => _navigateToEventDetails(event),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          image: DecorationImage(
+            image: CachedNetworkImageProvider(event.imageUrl ?? ''),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.black.withOpacity(0.7),
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('EEE, MMM d').format(event.dateTime),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Column(
+      children: [
+        _buildQuickActionSection(),
+        _buildTabBar(),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildEventsTab(),
+              _buildWorkshopsTab(),
+              _buildMembershipTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _buildQuickActionSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildQuickActionButton(
+              icon: Icons.event,
+              label: 'My Events',
+              onTap: () {
+                // Navigate to my events
+              },
+            ),
+            _buildQuickActionButton(
+              icon: Icons.bookmark,
+              label: 'Saved',
+              onTap: () {
+                // Navigate to saved events
+              },
+            ),
+            _buildQuickActionButton(
+              icon: Icons.workspace_premium,
+              label: 'Workshops',
+              onTap: () {
+                // Switch to workshops tab
+                _tabController.animateTo(1);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return TabBar(
+      controller: _tabController,
+      indicatorColor: Colors.blue[900],
+      labelColor: Colors.blue[900],
+      unselectedLabelColor: Colors.grey,
+      tabs: const [
+        Tab(text: 'Events', icon: Icon(Icons.event)),
+        Tab(text: 'Workshops', icon: Icon(Icons.workspace_premium)),
+        Tab(text: 'Membership', icon: Icon(Icons.card_membership)),
+      ],
+    );
+  }
+
+
+  Widget _buildEventsTab() {
+    return RefreshIndicator(
+      onRefresh: _refreshContent,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('Today\'s Events'),
+                _buildTodayEvents(),
+                _buildSectionTitle('Upcoming Events'),
+                _buildUpcomingEvents(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkshopsTab() {
+    return _buildWorkshopsAndMore();
+  }
+
+  Widget _buildMembershipTab() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildMembershipCard(),
+            const SizedBox(height: 16),
+            _buildMembershipBenefits(),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildMembershipCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your Membership',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[900],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Status: Active',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to membership details
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[900],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Manage Membership'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMembershipBenefits() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Membership Benefits',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[900],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildBenefitItem('Access to Exclusive Events'),
+            _buildBenefitItem('Discounted Workshop Rates'),
+            _buildBenefitItem('Digital Library Access'),
+            _buildBenefitItem('Networking Opportunities'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBenefitItem(String benefit) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green[700]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              benefit,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
 
   Widget _buildQuickActionButtons() {
     return Padding(

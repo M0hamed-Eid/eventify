@@ -62,6 +62,7 @@ dependencies:
   flutter_slidable:
   animations:
   webview_flutter:
+  carousel_slider:
 
 dev_dependencies:
   flutter_test:
