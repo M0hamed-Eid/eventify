@@ -15,7 +15,7 @@ class EventCalendarScreen extends StatefulWidget {
 class _EventCalendarScreenState extends State<EventCalendarScreen> {
 
   late final ValueNotifier<List<Event>> _selectedEvents;
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  final CalendarFormat _calendarFormat = CalendarFormat.month;
   final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   bool _isCalendarView = true;

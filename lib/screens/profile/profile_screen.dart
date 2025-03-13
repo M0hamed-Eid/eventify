@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
   import '../../models/user_profile.dart';
   import '../../services/database_service.dart';
   import '../../services/auth_service.dart';
-  import '../events/event_details_screen.dart';
+  import '../event_details/event_details_screen.dart';
   import '../help/help_screen.dart';
   import '../profile/edit_profile_screen.dart';
   import '../settings/notification_settings_screen.dart';

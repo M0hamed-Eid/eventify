@@ -6,7 +6,7 @@ import '../../models/workshop.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/event_card/event_card.dart';
 import '../../services/database_service.dart';
-import '../events/event_details_screen.dart';
+import '../event_details/event_details_screen.dart';
 import 'event_search_delegate.dart';
 
 class HomeScreen extends StatefulWidget {

@@ -32,7 +32,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     _checkRegistrationStatus();
   }
 
-
   Future<void> _checkRegistrationStatus() async {
     try {
       final userId = _authService.currentUser?.uid;
@@ -59,26 +58,112 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
 
     try {
-      // Check registration status
-      final registrationStatus = await _checkEventRegistrationEligibility(userId);
+      if (_isRegistered) {
+        // Show unregister confirmation
+        final confirm = await _showUnregisterConfirmation();
+        if (confirm) {
+          await _databaseService.unregisterFromEvent(
+            widget.event.id,
+            userId,
+          );
+          setState(() {
+            _isRegistered = false;
+          });
+        }
+      } else {
+        // Check event capacity and registration eligibility
+        final currentRegistrations = await _databaseService.getCurrentRegistrationsCount(widget.event.id);
 
-      switch (registrationStatus) {
-        case RegistrationStatus.available:
-          await _performEventRegistration(userId);
-          break;
-        case RegistrationStatus.full:
-          _showWaitlistDialog();
-          break;
-        case RegistrationStatus.memberOnly:
-          _showMemberOnlyDialog();
-          break;
-        case RegistrationStatus.alreadyRegistered:
-          _showAlreadyRegisteredDialog();
-          break;
+        if (currentRegistrations >= widget.event.maxParticipants) {
+          _showFullEventDialog();
+          return;
+        }
+
+        // Check if event is members only
+        if (widget.event.isAccMembersOnly) {
+          final isMember = await _databaseService.checkMemberStatus(userId);
+          if (!isMember) {
+            _showMemberOnlyDialog();
+            return;
+          }
+        }
+
+        // Proceed with registration
+        await _databaseService.registerForEvent(
+          widget.event.id,
+          userId,
+        );
+        setState(() {
+          _isRegistered = true;
+        });
       }
     } catch (e) {
       _handleRegistrationError(e);
     }
+  }
+
+  void _showFullEventDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Event Full'),
+        content: Text('${widget.event.title} is currently full. Would you like to join the waitlist?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _joinWaitlist();
+            },
+            child: const Text('Join Waitlist'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinWaitlist() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      await _databaseService.addToWaitlist(widget.event.id, userId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added to waitlist for ${widget.event.title}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      _handleRegistrationError(e);
+    }
+  }
+
+  void _showMemberOnlyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Members Only Event'),
+        content: Text('${widget.event.title} is only available to ACC members.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to membership information or upgrade page
+              // Navigator.pushNamed(context, '/membership');
+            },
+            child: const Text('Learn About Membership'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleRegistrationError(dynamic error) {
@@ -89,6 +174,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     );
   }
+
 
   void _showAlreadyRegisteredDialog() {
     showDialog(
@@ -129,48 +215,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  Future<void> _joinWaitlist() async {
-    try {
-      final userId = _authService.currentUser?.uid;
-      if (userId == null) return;
-
-      await _databaseService.addToWaitlist(widget.event.id, userId);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added to waitlist for ${widget.event.title}'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } catch (e) {
-      _handleRegistrationError(e);
-    }
-  }
-
-
-  void _showMemberOnlyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Members Only Event'),
-        content: Text('${widget.event.title} is only available to ACC members.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to membership information or upgrade page
-              // Navigator.pushNamed(context, '/membership');
-            },
-            child: const Text('Learn About Membership'),
-          ),
-        ],
-      ),
-    );
-  }
 
 
   Future<void> _performEventRegistration(String userId) async {

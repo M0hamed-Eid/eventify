@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/notification_item.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
-import '../events/event_details_screen.dart';
+import '../event_details/event_details_screen.dart';
 import 'notification_tile.dart';
 
 
