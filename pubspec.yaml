@@ -60,6 +60,7 @@ dependencies:
   charts_flutter:
   fl_chart:
   flutter_slidable:
+  animations:
 
 
 dev_dependencies:
