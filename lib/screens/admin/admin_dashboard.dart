@@ -4,13 +4,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 //import 'package:charts_flutter/flutter.dart' as charts;
 
 import '../../models/event.dart';
+import '../../models/workshop.dart';
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../../services/notification_service.dart';
 import '../../utils/route_guard.dart';
 import '../home/home_screen.dart';
 import 'add_event_screen.dart';
+import 'add_workshop_screen.dart';
 import 'manage_events_screen.dart';
+import 'manage_workshop_screen.dart';
 import 'send_notification_screen.dart';
 import 'user_management_screen.dart';
 import 'analytics_screen.dart';
@@ -32,23 +35,62 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _totalUsers = 0;
   int _upcomingEvents = 0;
 
+  int _totalWorkshops = 0;
+  int _upcomingWorkshops = 0;
+
+
+
   @override
   void initState() {
     super.initState();
     _loadDashboardStats();
   }
 
+  void _navigateToAddWorkshop(BuildContext context) async {
+    final Workshop? newWorkshop = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddWorkshopScreen(),
+      ),
+    );
+
+    if (newWorkshop != null) {
+      _loadDashboardStats();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Workshop added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  void _navigateToManageWorkshops(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ManageWorkshopsScreen(),
+      ),
+    );
+  }
+
   Future<void> _loadDashboardStats() async {
     setState(() => _isLoading = true);
     try {
       final events = await _databaseService.getEvents();
+      final workshops = await _databaseService.getWorkshops().first; // Use .first to get the first snapshot
       final users = await _databaseService.getTotalUsers();
 
       setState(() {
         _totalEvents = events.length;
+        _totalWorkshops = workshops.length; // Now workshops is a List<Workshop>
         _totalUsers = users;
         _upcomingEvents = events.where((event) =>
             event.dateTime.isAfter(DateTime.now())).length;
+        _upcomingWorkshops = workshops.where((workshop) =>
+        workshop.dateTime?.isAfter(DateTime.now()) ?? false).length;
         _isLoading = false;
       });
     } catch (e) {
@@ -143,6 +185,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
           _buildStatItem('Total Events', _totalEvents.toString(), Icons.event),
           _buildStatItem('Total Users', _totalUsers.toString(), Icons.people),
           _buildStatItem('Upcoming Events', _upcomingEvents.toString(), Icons.calendar_today),
+          _buildStatItem('Total Workshops', _totalWorkshops.toString(), Icons.workspaces),
+          _buildStatItem('Upcoming Workshops', _upcomingWorkshops.toString(), Icons.workspaces_outlined),
         ],
       ),
     );
@@ -185,6 +229,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
         icon: Icons.event,
         color: Colors.green,
         onTap: () => _navigateToManageEvents(context),
+      ),
+      AdminAction(
+        title: 'Add Workshop',
+        icon: Icons.workspaces,
+        color: Colors.blue,
+        onTap: () => _navigateToAddWorkshop(context),
+      ),
+      AdminAction(
+        title: 'Manage Workshops',
+        icon: Icons.workspaces_outlined,
+        color: Colors.green,
+        onTap: () => _navigateToManageWorkshops(context),
       ),
       AdminAction(
         title: 'Send Notification',

@@ -875,11 +875,146 @@ class DatabaseService {
   }
 
   Stream<List<Workshop>> getWorkshops() {
-    return _firestore
-        .collection('workshops')
-        .snapshots()
-        .map((snapshot) =>
-        snapshot.docs.map((doc) => Workshop.fromFirestore(doc)).toList());
+    try {
+      return _firestore
+          .collection('workshops')
+          .snapshots()
+          .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          return Workshop.fromFirestore(doc);
+        }).toList();
+      });
+    } catch (e) {
+      _logger.e('Error fetching workshops: $e');
+      return Stream.value([]); // Return an empty list if there's an error
+    }
+  }
+
+  Future<Workshop> createWorkshop(Workshop workshop) async {
+    try {
+      final docRef = await _firestore.collection('workshops').add(workshop.toMap());
+      final doc = await docRef.get();
+      final createdWorkshop = Workshop.fromFirestore(doc);
+
+      // Optionally, send a notification about the new workshop
+      await _sendWorkshopNotification(createdWorkshop);
+
+      return createdWorkshop;
+    } catch (e) {
+      _logger.e('Error creating workshop: $e');
+      throw 'Error creating workshop: $e';
+    }
+  }
+
+  Future<void> _sendWorkshopNotification(Workshop workshop) async {
+    try {
+      final message = _createWorkshopNotificationMessage(workshop);
+
+      // Send push notification
+      await _notificationService.sendCustomNotification(
+        title: workshop.title,
+        body: message,
+        data: {
+          'type': 'workshop',
+          'workshopId': workshop.id,
+          'action': 'view_workshop',
+        },
+      );
+
+      // Create notifications in Firestore for all users
+      await _createWorkshopNotificationsForUsers(workshop, message);
+
+      // Update workshop with notification status
+      await _firestore
+          .collection('workshops')
+          .doc(workshop.id)
+          .update({
+        'notificationSent': true,
+        'notificationSentAt': FieldValue.serverTimestamp(),
+      });
+
+    } catch (e) {
+      _logger.e('Error sending workshop notification: $e');
+      throw 'Error sending workshop notification: $e';
+    }
+  }
+
+  Future<void> _createWorkshopNotificationsForUsers(Workshop workshop, String message) async {
+    try {
+      // Fetch all users from Firestore
+      final usersSnapshot = await _firestore.collection('profiles').get();
+
+      // Create notifications for each user
+      final batch = _firestore.batch();
+      for (var userDoc in usersSnapshot.docs) {
+        final notificationRef = _firestore.collection('notifications').doc();
+        batch.set(notificationRef, {
+          'userId': userDoc.id,
+          'title': 'New Workshop: ${workshop.title}',
+          'message': message,
+          'type': 'workshop',
+          'workshopId': workshop.id,
+          'dateTime': FieldValue.serverTimestamp(),
+          'isRead': false,
+          'data': {
+            'action': 'view_workshop',
+            'workshopId': workshop.id,
+          },
+        });
+      }
+
+      // Commit the batch
+      await batch.commit();
+    } catch (e) {
+      _logger.e('Error creating workshop notifications: $e');
+      throw 'Error creating workshop notifications: $e';
+    }
+  }
+
+  Future<void> updateWorkshop(String workshopId, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('workshops').doc(workshopId).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      _logger.e('Error updating workshop: $e');
+      throw 'Error updating workshop: $e';
+    }
+  }
+
+  Future<void> deleteWorkshop(String workshopId) async {
+    try {
+      await _firestore.collection('workshops').doc(workshopId).delete();
+    } catch (e) {
+      _logger.e('Error deleting workshop: $e');
+      throw 'Error deleting workshop: $e';
+    }
+  }
+
+  Future<Workshop?> getWorkshop(String workshopId) async {
+    try {
+      final doc = await _firestore.collection('workshops').doc(workshopId).get();
+      return doc.exists ? Workshop.fromFirestore(doc) : null;
+    } catch (e) {
+      _logger.e('Error fetching workshop: $e');
+      throw 'Error fetching workshop: $e';
+    }
+  }
+
+  String _createWorkshopNotificationMessage(Workshop workshop) {
+    final dateFormat = DateFormat('EEEE, MMMM d');
+    final date = workshop.dateTime != null ? dateFormat.format(workshop.dateTime!) : 'TBD';
+
+    String message = 'Join us on $date for ${workshop.title}. ';
+
+    if (workshop.location != null) {
+      message += 'This workshop will be held at ${workshop.location}. ';
+    }
+
+    message += 'Schedule: ${workshop.schedule}';
+
+    return message;
   }
 
   Future<List<Event>> searchEvents(String query) async {

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase, SupabaseClient;
 
 enum UserRole {
@@ -102,11 +103,16 @@ class AuthService {
       final UserCredential credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
-      );
+      ).timeout(Duration(seconds: 10)); // Add a timeout
 
       if (credential.user == null) {
         throw 'Login failed: No user returned';
       }
+
+      // Save credentials in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_email', email);
+      await prefs.setString('user_password', password);
 
       _logger.d('User signed in successfully: ${credential.user!.uid}');
     } catch (e) {
@@ -115,9 +121,32 @@ class AuthService {
     }
   }
 
+  Future<bool> autoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    final password = prefs.getString('user_password');
+
+    if (email != null && password != null) {
+      try {
+        await signIn(email: email, password: password);
+        return true; // Login successful
+      } catch (e) {
+        return false; // Auto login failed
+      }
+    }
+
+    return false; // No saved credentials
+  }
+
   Future<void> signOut() async {
     try {
       _logger.d('Signing out user');
+
+      // Clear saved credentials
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_email');
+      await prefs.remove('user_password');
+
       await _auth.signOut();
       _logger.d('User signed out successfully');
     } catch (e) {
@@ -141,7 +170,13 @@ class AuthService {
     try {
       _logger.d('Updating user password');
       if (currentUser == null) throw 'No user logged in';
+
       await currentUser!.updatePassword(newPassword);
+
+      // Update saved password in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_password', newPassword);
+
       _logger.d('Password updated successfully');
     } catch (e) {
       _logger.e('Error updating password: $e');

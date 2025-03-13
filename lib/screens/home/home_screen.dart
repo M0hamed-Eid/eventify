@@ -597,5 +597,3 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 }
-
-// The EventSearchDelegate remains the same as in the previous implementation

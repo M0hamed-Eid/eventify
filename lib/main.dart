@@ -1,3 +1,4 @@
+import 'package:eventify/providers/auth_provider.dart';
 import 'package:eventify/providers/language_provider.dart';
 import 'package:eventify/providers/theme_provider.dart';
 import 'package:eventify/screens/auth/auth_wrapper.dart';
@@ -36,6 +37,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => DatabaseProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => LanguageProvider()),
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+
       ],
       child: const MyApp(),
     ),
