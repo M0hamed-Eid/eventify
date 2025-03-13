@@ -358,29 +358,120 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          SliverAppBar(
+            expandedHeight: 350.0,
+            floating: false,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
                 children: [
-                  _buildEventHeader(),
-                  const SizedBox(height: 16),
-                  _buildEventDetails(),
-                  const SizedBox(height: 16),
-                  _buildDescriptionSection(),
-                  const SizedBox(height: 16),
-                  _buildAdditionalDetails(),
-                  if (widget.event.minimumAge != null)
-                    _buildAgeRequirementSection(),
-                  if (widget.event.entryGuidelines.isNotEmpty)
-                    _buildEntryGuidelinesSection(),
-                  if (widget.event.securityRestrictions.isNotEmpty)
-                    _buildSecurityRestrictionsSection(),
-                  const SizedBox(height: 24),
-                  _buildRegistrationButton(),
+                  // Event Image with gradient overlay
+                  _buildEventImage(),
+                  // Gradient Overlay
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Event Details Positioned at Bottom
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.event.title,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 10.0,
+                                color: Colors.black.withOpacity(0.5),
+                                offset: const Offset(2.0, 2.0),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildEventTags(),
+                      ],
+                    ),
+                  ),
                 ],
+              ),
+              title: Text(
+                widget.event.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 5,
+                    blurRadius: 7,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Event Details Section
+                    _buildEnhancedEventDetails(),
+
+                    const SizedBox(height: 20),
+
+                    // Description Section
+                    _buildDescriptionSection(),
+
+                    const SizedBox(height: 20),
+
+                    // Additional Sections
+                    _buildAdditionalInformationSection(),
+
+                    // Conditional Sections
+                    if (widget.event.minimumAge != null)
+                      _buildAgeRequirementSection(),
+
+                    if (widget.event.entryGuidelines.isNotEmpty)
+                      _buildEntryGuidelinesSection(),
+
+                    if (widget.event.securityRestrictions.isNotEmpty)
+                      _buildSecurityRestrictionsSection(),
+
+                    const SizedBox(height: 30),
+
+                    // Registration Button
+                    _buildImprovedRegistrationButton(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -388,6 +479,171 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     );
   }
+
+
+  Widget _buildAdditionalInformationSection() {
+    return ExpansionTile(
+      title: Text(
+        'Additional Information',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.blue[900],
+          fontSize: 18,
+        ),
+      ),
+      children: [
+        if (widget.event.guidelines.isNotEmpty)
+          _buildInfoSection('Guidelines', widget.event.guidelines),
+        if (widget.event.requirements.isNotEmpty)
+          _buildInfoSection('Requirements', widget.event.requirements),
+        if (widget.event.requireConfirmationEmail)
+          _buildAdditionalInfoTile(
+            Icons.email,
+            'Confirmation Email Required',
+            Colors.blue,
+          ),
+        if (widget.event.mediaConsent)
+          _buildAdditionalInfoTile(
+            Icons.camera_alt,
+            'Media Recording Consent',
+            Colors.green,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAdditionalInfoTile(IconData icon, String text, Color color) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(
+        text,
+        style: TextStyle(color: color, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedEventDetails() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildDetailRow(
+              Icons.calendar_today,
+              'Date',
+              DateFormat('EEEE, MMMM d, yyyy').format(widget.event.dateTime),
+            ),
+            const Divider(),
+            _buildDetailRow(
+              Icons.access_time,
+              'Time',
+              widget.event.timeRange,
+            ),
+            const Divider(),
+            _buildDetailRow(
+              widget.event.isOnline ? Icons.videocam : Icons.location_on,
+              'Location',
+              widget.event.location,
+            ),
+            if (widget.event.presenter != null) ...[
+              const Divider(),
+              _buildDetailRow(
+                Icons.person,
+                'Presenter',
+                widget.event.presenter!,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue[700], size: 24),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImprovedRegistrationButton() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: _isRegistered
+              ? [Colors.red[400]!, Colors.red[700]!]
+              : [Colors.blue[600]!, Colors.blue[900]!],
+        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _handleRegistration,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _isRegistered ? Icons.remove_circle : Icons.add_circle,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              _isRegistered ? 'Unregister' : 'Register Now',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate()
+        .fadeIn(duration: 300.ms)
+        .scaleXY(begin: 0.9, end: 1.0);
+  }
+
 
   Widget _buildAgeRequirementSection() {
     return Padding(
@@ -572,49 +828,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  Widget _buildEventDetails() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDetailRow(
-          Icons.calendar_today,
-          'Date: ${DateFormat('EEEE, MMMM d, yyyy').format(widget.event.dateTime)}',
-        ),
-        _buildDetailRow(
-          Icons.access_time,
-          'Time: ${widget.event.timeRange}',
-        ),
-        _buildDetailRow(
-          widget.event.isOnline ? Icons.videocam : Icons.location_on,
-          'Location: ${widget.event.location}',
-        ),
-        if (widget.event.presenter != null)
-          _buildDetailRow(
-            Icons.person,
-            'Presenter: ${widget.event.presenter}',
-          ),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.blue[700]),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: Colors.grey[800]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDescriptionSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,35 +848,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     );
   }
 
-  Widget _buildAdditionalDetails() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Existing additional details
-        ExpansionTile(
-          title: const Text('Additional Information'),
-          children: [
-            if (widget.event.guidelines.isNotEmpty)
-              _buildInfoSection('Guidelines', widget.event.guidelines),
-            if (widget.event.requirements.isNotEmpty)
-              _buildInfoSection('Requirements', widget.event.requirements),
-
-            // New additional details
-            if (widget.event.requireConfirmationEmail)
-              _buildDetailRow(
-                Icons.email,
-                'Confirmation Email Required',
-              ),
-            if (widget.event.mediaConsent)
-              _buildDetailRow(
-                Icons.camera_alt,
-                'Media Recording Consent Requested',
-              ),
-          ],
-        ),
-      ],
-    );
-  }
 
   // Optional: Add a method to show media consent details
   void _showMediaConsentDetails() {
