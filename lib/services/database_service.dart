@@ -1183,18 +1183,26 @@ class DatabaseService {
     return message;
   }
 
-  Future<List<Event>> searchEvents(String query) async {
-    if (query.isEmpty) return [];
+  Stream<List<Event>> searchEvents(String query) {
+    if (query.isEmpty) {
+      // Return an empty stream if the query is empty
+      return Stream.value([]);
+    }
 
     final queryLower = query.toLowerCase();
-    final snapshot = await _firestore.collection('events').get();
 
-    return snapshot.docs
-        .map((doc) => Event.fromFirestore(doc))
-        .where((event) =>
-    event.title.toLowerCase().contains(queryLower) ||
-        event.description.toLowerCase().contains(queryLower))
-        .toList();
+    // Return a stream of events that match the query
+    return _firestore
+        .collection('events')
+        .snapshots() // Get a stream of Firestore snapshots
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => Event.fromFirestore(doc)) // Convert Firestore docs to Event objects
+          .where((event) =>
+      event.title.toLowerCase().contains(queryLower) ||
+          event.description.toLowerCase().contains(queryLower)) // Filter events
+          .toList(); // Convert the filtered events to a list
+    });
   }
 
 }

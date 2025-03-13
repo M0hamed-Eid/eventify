@@ -224,4 +224,8 @@ class Event {
       'mediaConsent': mediaConsent,
     };
   }
+
+  static List empty() {
+    return [];
+  }
 }
