@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/event.dart';
+import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 
 class EventCard extends StatefulWidget {
@@ -22,13 +23,272 @@ class EventCard extends StatefulWidget {
 
 class _EventCardState extends State<EventCard> {
   bool _isRegistered = false;
+  bool _isSaved = false;
   final DatabaseService _databaseService = DatabaseService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _checkRegistrationStatus();
+    _checkEventStatus();
   }
+
+  Future<void> _checkEventStatus() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      // Check registration status
+      final registrationStatus = await _databaseService.checkEventRegistrationStatus(
+          widget.event.id,
+          userId
+      );
+
+      // Check if event is saved
+      final isSaved = await _databaseService.isEventSaved(userId, widget.event.id);
+
+      if (mounted) {
+        setState(() {
+          _isRegistered = registrationStatus['isRegistered'] ?? false;
+          _isSaved = isSaved;
+        });
+      }
+    } catch (e) {
+      print('Error checking event status: $e');
+    }
+  }
+
+
+  Future<void> _checkRegistrationAndSaveStatus() async {
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) return;
+
+      // Check registration status
+      final registrationCheck = await _databaseService.checkEventRegistrationStatus(
+        widget.event.id,
+        userId,
+      );
+
+      // Check saved status
+      final userProfile = await _databaseService.getUserProfile(userId);
+
+      if (mounted) {
+        setState(() {
+          _isRegistered = registrationCheck['isRegistered'] ?? false;
+          _isSaved = userProfile.savedEvents.contains(widget.event.id);
+        });
+      }
+    } catch (e) {
+      print('Error checking status: $e');
+    }
+  }
+  Future<void> _handleRegistration() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) {
+      _showLoginRequiredDialog();
+      return;
+    }
+
+    try {
+      if (_isRegistered) {
+        // Show unregister confirmation
+        final confirm = await _showUnregisterConfirmationDialog();
+        if (confirm!) {
+          await _databaseService.unregisterFromEvent(
+            widget.event.id,
+            userId,
+          );
+          _showRegistrationStatusSnackBar('Unregistered from the event');
+        }
+      } else {
+        // Check event capacity and registration eligibility
+        final currentRegistrations = await _databaseService.getCurrentRegistrationsCount(widget.event.id);
+
+        if (currentRegistrations >= widget.event.maxParticipants) {
+          _showFullEventDialog();
+          return;
+        }
+
+        // Check if event is members only
+        if (widget.event.isAccMembersOnly) {
+          final isMember = await _databaseService.checkMemberStatus(userId);
+          if (!isMember) {
+            _showMemberOnlyDialog();
+            return;
+          }
+        }
+
+        // Proceed with registration
+        await _databaseService.registerForEvent(
+          widget.event.id,
+          userId,
+        );
+        _showRegistrationStatusSnackBar('Successfully registered for the event');
+      }
+
+      // Update registration status
+      setState(() {
+        _isRegistered = !_isRegistered;
+      });
+
+      // Call the onRegister callback if provided
+      widget.onRegister?.call();
+    } catch (e) {
+      _showRegistrationStatusSnackBar('Failed to register: $e', isError: true);
+    }
+  }
+
+  Future<void> _toggleSaveEvent() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) {
+      _showLoginRequiredDialog();
+      return;
+    }
+
+    try {
+      if (_isSaved) {
+        // Remove from saved events
+        await _databaseService.removeSavedEvent(userId, widget.event.id);
+        _showSnackBar('Event removed from saved events');
+      } else {
+        // Save the event
+        await _databaseService.saveEvent(userId, widget.event.id);
+        _showSnackBar('Event saved successfully');
+      }
+
+      // Update local state
+      setState(() {
+        _isSaved = !_isSaved;
+      });
+    } catch (e) {
+      _showSnackBar('Failed to save event: $e', isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  void _showRegistrationStatusSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please log in to perform this action.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to login screen
+              // Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullEventDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Event Full'),
+        content: Text('${widget.event.title} is currently full. Would you like to join the waitlist?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _joinWaitlist();
+            },
+            child: const Text('Join Waitlist'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMemberOnlyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Members Only Event'),
+        content: Text('${widget.event.title} is only available to ACC members.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to membership information or upgrade page
+              // Navigator.pushNamed(context, '/membership');
+            },
+            child: const Text('Learn About Membership'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinWaitlist() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      await _databaseService.addToWaitlist(widget.event.id, userId);
+      _showRegistrationStatusSnackBar('Added to waitlist for ${widget.event.title}');
+    } catch (e) {
+      _showRegistrationStatusSnackBar('Failed to join waitlist: $e', isError: true);
+    }
+  }
+
+  Future<bool?> _showUnregisterConfirmationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unregister from Event'),
+        content: const Text('Are you sure you want to unregister from this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Unregister'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   Future<void> _checkRegistrationStatus() async {
     try {
@@ -45,18 +305,6 @@ class _EventCardState extends State<EventCard> {
       }
     } catch (e) {
       print('Error checking registration status: $e');
-    }
-  }
-
-  Future<void> _handleRegistration() async {
-    if (_isRegistered) {
-      // Show dialog to confirm unregistration
-      final confirmUnregister = await _showUnregisterConfirmationDialog();
-      if (confirmUnregister == true) {
-        await _unregisterFromEvent();
-      }
-    } else {
-      await _registerForEvent();
     }
   }
 
@@ -125,31 +373,6 @@ class _EventCardState extends State<EventCard> {
     }
   }
 
-  Future<bool?> _showUnregisterConfirmationDialog() {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unregister from Event'),
-        content: const Text('Are you sure you want to unregister from this event?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Unregister'),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
-
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -178,6 +401,13 @@ class _EventCardState extends State<EventCard> {
 
               // Event Content
               _buildEventContent(context),
+
+              // Save Button
+              Positioned(
+                top: 10,
+                right: 10,
+                child: _buildSaveButton(),
+              ),
             ],
           ),
         ),
@@ -186,6 +416,24 @@ class _EventCardState extends State<EventCard> {
           .slideY(begin: 0.1, end: 0),
     );
   }
+
+  Widget _buildSaveButton() {
+    return IconButton(
+      icon: Icon(
+        _isSaved ? Icons.bookmark : Icons.bookmark_border,
+        color: Colors.white,
+        shadows: [
+          Shadow(
+            blurRadius: 10.0,
+            color: Colors.black.withOpacity(0.5),
+            offset: const Offset(2.0, 2.0),
+          ),
+        ],
+      ),
+      onPressed: _toggleSaveEvent,
+    );
+  }
+
 
   Widget _buildEventBackground() {
     return widget.event.imageUrl != null

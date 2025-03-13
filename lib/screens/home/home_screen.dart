@@ -23,32 +23,130 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ACC Events'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => _showSearchDialog(context),
+      body: CustomScrollView(
+        slivers: [
+          _buildCustomSliverAppBar(),
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildQuickActionButtons(),
+                _buildSectionTitle('Today\'s Events'),
+                _buildTodayEvents(),
+                _buildSectionTitle('Upcoming Events'),
+                _buildUpcomingEvents(),
+                _buildSectionTitle('Workshops & Programs'),
+                _buildWorkshopsAndMore(),
+              ],
+            ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshContent,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Today\'s Events'),
-              _buildTodayEvents(),
-              _buildSectionTitle('Upcoming Events'),
-              _buildUpcomingEvents(),
-              _buildSectionTitle('Workshops and More'),
-              _buildWorkshopsAndMore(),
+    );
+  }
+
+  Widget _buildCustomSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 200.0,
+      floating: false,
+      pinned: true,
+      flexibleSpace: FlexibleSpaceBar(
+        title: Text(
+          'ACC Events',
+          style: TextStyle(
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                blurRadius: 10.0,
+                color: Colors.black.withOpacity(0.5),
+                offset: const Offset(2.0, 2.0),
+              ),
             ],
           ),
         ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/event_background.png', // Add a background image
+              fit: BoxFit.scaleDown,
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: () => _showSearchDialog(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildQuickActionButton(
+              icon: Icons.event,
+              label: 'My Events',
+              onTap: () {
+                // Navigate to user's registered events
+              },
+            ),
+            const SizedBox(width: 10),
+            _buildQuickActionButton(
+              icon: Icons.bookmark,
+              label: 'Saved',
+              onTap: () {
+                // Navigate to saved events
+              },
+            ),
+            const SizedBox(width: 10),
+            _buildQuickActionButton(
+              icon: Icons.workspace_premium,
+              label: 'Workshops',
+              onTap: () {
+                // Scroll to workshops section
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+      onPressed: onTap,
     );
   }
 

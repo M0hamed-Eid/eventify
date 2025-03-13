@@ -564,10 +564,33 @@ class DatabaseService {
     }
   }
 
+  // Save an event to user's saved events
+  Future<void> saveEvent(String userId, String eventId) async {
+    try {
+      // Get the current user profile
+      final userDoc = _firestore.collection('profiles').doc(userId);
+
+      // Update the savedEvents array in the user's profile
+      await userDoc.update({
+        'savedEvents': FieldValue.arrayUnion([eventId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      _logger.e('Error saving event: $e');
+      throw 'Failed to save event: $e';
+    }
+  }
+
+  // Remove an event from user's saved events
   Future<void> removeSavedEvent(String userId, String eventId) async {
     try {
-      await _firestore.collection('profiles').doc(userId).update({
+      // Get the current user profile
+      final userDoc = _firestore.collection('profiles').doc(userId);
+
+      // Remove the event ID from the savedEvents array
+      await userDoc.update({
         'savedEvents': FieldValue.arrayRemove([eventId]),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       _logger.e('Error removing saved event: $e');
@@ -575,18 +598,87 @@ class DatabaseService {
     }
   }
 
-  Future<void> saveEvent(String userId, String eventId) async {
+  // Get saved events for a user
+  Future<List<Event>> getSavedEvents(String userId) async {
     try {
-      await _firestore
-          .collection('saved_events')
-          .add({
-        'userId': userId,
-        'eventId': eventId,
-        'saved_at': FieldValue.serverTimestamp(),
-      });
+      // Get the user profile to retrieve saved event IDs
+      final userDoc = await _firestore.collection('profiles').doc(userId).get();
+      final userData = userDoc.data();
+
+      if (userData == null) {
+        return [];
+      }
+
+      // Extract saved event IDs
+      final savedEventIds = List<String>.from(userData['savedEvents'] ?? []);
+
+      // If no saved events, return empty list
+      if (savedEventIds.isEmpty) {
+        return [];
+      }
+
+      // Fetch events by their IDs
+      final eventsSnapshot = await _firestore
+          .collection('events')
+          .where(FieldPath.documentId, whereIn: savedEventIds)
+          .get();
+
+      return eventsSnapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
     } catch (e) {
-      _logger.e('Error saving event: $e');
-      throw 'Error saving event: $e';
+      _logger.e('Error fetching saved events: $e');
+      throw 'Failed to fetch saved events: $e';
+    }
+  }
+
+  // Stream version of saved events for real-time updates
+  Stream<List<Event>> getSavedEventsStream(String userId) {
+    return _firestore
+        .collection('profiles')
+        .doc(userId)
+        .snapshots()
+        .asyncMap((userDoc) async {
+      // Extract saved event IDs
+      final userData = userDoc.data();
+      if (userData == null) {
+        return [];
+      }
+
+      final savedEventIds = List<String>.from(userData['savedEvents'] ?? []);
+
+      // If no saved events, return empty list
+      if (savedEventIds.isEmpty) {
+        return [];
+      }
+
+      // Fetch events by their IDs
+      final eventsSnapshot = await _firestore
+          .collection('events')
+          .where(FieldPath.documentId, whereIn: savedEventIds)
+          .get();
+
+      return eventsSnapshot.docs
+          .map((doc) => Event.fromFirestore(doc))
+          .toList();
+    });
+  }
+
+  // Check if an event is saved by the user
+  Future<bool> isEventSaved(String userId, String eventId) async {
+    try {
+      final userDoc = await _firestore.collection('profiles').doc(userId).get();
+      final userData = userDoc.data();
+
+      if (userData == null) {
+        return false;
+      }
+
+      final savedEventIds = List<String>.from(userData['savedEvents'] ?? []);
+      return savedEventIds.contains(eventId);
+    } catch (e) {
+      _logger.e('Error checking saved event: $e');
+      return false;
     }
   }
 
