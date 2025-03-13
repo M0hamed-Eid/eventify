@@ -197,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: SlideAnimation(
                   verticalOffset: 50.0,
                   child: FadeInAnimation(
-                    child: EventCard(
+                      child: EventCard(
                       event: events[index],
                       onTap: () => _navigateToEventDetails(events[index]),
                       onRegister: () => _registerForEvent(events[index]),
