@@ -20,6 +20,8 @@ class Event {
   final String category;
   final String? series;
   final int currentParticipants;
+  final int maxParticipants;
+
 
   final DateTime? endDateTime;
   final List<String> requirements;
@@ -66,7 +68,8 @@ class Event {
     required this.guidelines,
     required this.category,
     this.series,
-    this.currentParticipants = 0 , // Add this line
+    this.currentParticipants = 0 ,
+    this.maxParticipants = 50,
 
     this.endDateTime,
     this.requirements = const [],
@@ -135,7 +138,11 @@ class Event {
           : [],
       category: data['category'] ?? '',
       series: data['series'],
-      currentParticipants: data['currentParticipants'] ?? 0, // Add this line
+      currentParticipants: data['currentParticipants'] ?? 0,
+      maxParticipants: data['maxParticipants'] ?? 50,
+
+
+
       notificationSent: data['notificationSent'] ?? false,
       notificationSentAt: (data['notificationSentAt'] as Timestamp?)?.toDate(),
 
@@ -194,6 +201,8 @@ class Event {
       'category': category,
       'series': series,
       'currentParticipants': currentParticipants,
+      'maxParticipants': maxParticipants,
+
       'notificationSent': notificationSent,
       'notificationSentAt': notificationSentAt != null ? Timestamp.fromDate(notificationSentAt!) : null,
 

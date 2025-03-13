@@ -3,6 +3,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../models/event.dart';
 import '../../models/workshop.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/event_card/event_card.dart';
 import '../../services/database_service.dart';
 import '../events/event_details_screen.dart';
@@ -57,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -229,10 +230,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         'Workshops & Programs',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[900],
-                        ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[900],
+                                ),
                       ),
                       Icon(
                         Icons.workspace_premium,
@@ -244,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 ...List.generate(
                   workshops.length,
-                      (index) => AnimationConfiguration.staggeredList(
+                  (index) => AnimationConfiguration.staggeredList(
                     position: index,
                     duration: const Duration(milliseconds: 375),
                     child: SlideAnimation(
@@ -483,7 +485,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             ...List.generate(
               3,
-                  (index) => Padding(
+              (index) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,27 +575,205 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _registerForEvent(Event event) async {
     try {
-      await _databaseService.registerForEvent(
-        event.id,
-        'currentUserId', // Replace with actual user ID
-      );
+      // Ensure the user is authenticated
+      final userId = AuthService().currentUser?.uid;
+      if (userId == null) {
+        // Show login prompt
+        _showLoginRequiredDialog();
+        return;
+      }
+
+      // Check event registration status
+      final registrationStatus =
+          await _checkEventRegistrationStatus(event, userId);
+
+      switch (registrationStatus) {
+        case RegistrationStatus.available:
+          await _performEventRegistration(event, userId);
+          break;
+        case RegistrationStatus.full:
+          _showWaitlistDialog(event);
+          break;
+        case RegistrationStatus.memberOnly:
+          _showMemberOnlyDialog(event);
+          break;
+        case RegistrationStatus.alreadyRegistered:
+          _showAlreadyRegisteredDialog(event);
+          break;
+      }
+    } catch (e) {
+      _handleRegistrationError(e);
+    }
+  }
+  Future<RegistrationStatus> _checkEventRegistrationStatus(Event event, String userId) async {
+    // Check if the user is already registered
+    final registrationCheck = await _databaseService.checkEventRegistrationStatus(event.id, userId);
+    if (registrationCheck['isRegistered'] == true) {
+      return RegistrationStatus.alreadyRegistered;
+    }
+
+    // Check if event is members only and user is not a member
+    if (event.isAccMembersOnly && !await _checkMemberStatus(userId)) {
+      return RegistrationStatus.memberOnly;
+    }
+
+    // Check if event is full
+    final currentRegistrations = await _databaseService.getCurrentRegistrationsCount(event.id);
+    if (currentRegistrations >= event.maxParticipants) {
+      return RegistrationStatus.full;
+    }
+
+    return RegistrationStatus.available;
+  }
+
+  Future<void> _performEventRegistration(Event event, String userId) async {
+    try {
+      final result = await _databaseService.registerForEvent(event.id, userId);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Successfully registered for event'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(result == 'confirmed'
+                ? 'Successfully registered for the event!'
+                : 'You have been added to the waitlist.'),
+            backgroundColor: result == 'confirmed' ? Colors.green : Colors.orange,
           ),
         );
       }
     } catch (e) {
+      _handleRegistrationError(e);
+    }
+  }
+
+  Future<bool> _checkMemberStatus(String userId) async {
+    // Implement logic to check if user is a member
+    return await _databaseService.checkMemberStatus(userId);
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please log in to register for events.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to login screen
+              // Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWaitlistDialog(Event event) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Event Full'),
+        content: Text('${event.title} is currently full. Would you like to join the waitlist?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _joinWaitlist(event);
+            },
+            child: const Text('Join Waitlist'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMemberOnlyDialog(Event event) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Members Only Event'),
+        content: Text('${event.title} is only available to ACC members.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to membership information or upgrade page
+              // Navigator.pushNamed(context, '/membership');
+            },
+            child: const Text('Learn About Membership'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAlreadyRegisteredDialog(Event event) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Already Registered'),
+        content: Text('You are already registered for ${event.title}.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinWaitlist(Event event) async {
+    try {
+      final userId = AuthService().currentUser?.uid;
+      if (userId == null) return;
+
+      await _databaseService.addToWaitlist(event.id, userId);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to register: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Added to waitlist for ${event.title}'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
+    } catch (e) {
+      _handleRegistrationError(e);
     }
   }
+
+  void _handleRegistrationError(dynamic error) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration failed: ${error.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
 }
+
+enum RegistrationStatus {
+  available,
+  full,
+  memberOnly,
+  alreadyRegistered
+}
+

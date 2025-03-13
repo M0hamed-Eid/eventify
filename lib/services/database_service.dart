@@ -654,7 +654,6 @@ class DatabaseService {
         snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList());
   }
 
-  // Enhanced register for event method with waitlist support
   Future<String> registerForEvent(String eventId, String userId) async {
     try {
       // Get the event details
@@ -709,6 +708,81 @@ class DatabaseService {
     } catch (e) {
       _logger.e('Error registering for event: $e');
       throw 'Failed to register for event: $e';
+    }
+  }
+
+  // Add this method to check current registrations count
+  Future<int> getCurrentRegistrationsCount(String eventId) async {
+    try {
+      final registrationsSnapshot = await _firestore
+          .collection('registrations')
+          .where('eventId', isEqualTo: eventId)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
+
+      return registrationsSnapshot.docs.length;
+    } catch (e) {
+      _logger.e('Error getting registrations count: $e');
+      return 0;
+    }
+  }
+
+// Add this method to check member status
+  Future<bool> checkMemberStatus(String userId) async {
+    try {
+      final userDoc = await _firestore
+          .collection('profiles')
+          .doc(userId)
+          .get();
+
+      if (!userDoc.exists) return false;
+
+      final userData = userDoc.data();
+      return userData?['membershipStatus'] == 'active';
+    } catch (e) {
+      _logger.e('Error checking member status: $e');
+      return false;
+    }
+  }
+
+// Add this method to add to waitlist
+  Future<void> addToWaitlist(String eventId, String userId) async {
+    try {
+      await _firestore.collection('event_waitlists').add({
+        'eventId': eventId,
+        'userId': userId,
+        'status': 'waiting',
+        'addedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      _logger.e('Error adding to waitlist: $e');
+      throw 'Failed to add to waitlist: $e';
+    }
+  }
+
+  Future<String> _addToWaitlist(String eventId, String userId) async {
+    try {
+      final waitlistRef = _firestore.collection('event_waitlists').doc();
+      await waitlistRef.set({
+        'eventId': eventId,
+        'userId': userId,
+        'status': 'waiting',
+        'addedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create notification about waitlist
+      await createNotification(
+        userId: userId,
+        title: 'Waitlist Notification',
+        message: 'You have been added to the waitlist for the event.',
+        type: 'event_waitlist',
+        eventId: eventId,
+      );
+
+      return 'waitlisted';
+    } catch (e) {
+      _logger.e('Error adding to waitlist: $e');
+      throw 'Failed to add to waitlist: $e';
     }
   }
 
@@ -1029,33 +1103,6 @@ class DatabaseService {
     event.title.toLowerCase().contains(queryLower) ||
         event.description.toLowerCase().contains(queryLower))
         .toList();
-  }
-
-  // Add to waitlist if event is full
-  Future<String> _addToWaitlist(String eventId, String userId) async {
-    try {
-      final waitlistRef = _firestore.collection('event_waitlists').doc();
-      await waitlistRef.set({
-        'eventId': eventId,
-        'userId': userId,
-        'status': 'waiting',
-        'addedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Create notification about waitlist
-      await createNotification(
-        userId: userId,
-        title: 'Waitlist Notification',
-        message: 'You have been added to the waitlist for the event.',
-        type: 'event_waitlist',
-        eventId: eventId,
-      );
-
-      return 'waitlisted';
-    } catch (e) {
-      _logger.e('Error adding to waitlist: $e');
-      throw 'Failed to add to waitlist: $e';
-    }
   }
 
 }

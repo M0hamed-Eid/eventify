@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/event.dart';
+import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
+import '../home/home_screen.dart';
 
 class EventDetailsScreen extends StatefulWidget {
   final Event event;
@@ -22,6 +24,7 @@ class EventDetailsScreen extends StatefulWidget {
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   bool _isRegistered = false;
   final DatabaseService _databaseService = DatabaseService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -29,11 +32,15 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     _checkRegistrationStatus();
   }
 
+
   Future<void> _checkRegistrationStatus() async {
     try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) return;
+
       final status = await _databaseService.checkEventRegistrationStatus(
         widget.event.id,
-        'currentUserId', // Replace with actual current user ID
+        userId,
       );
 
       setState(() {
@@ -45,37 +52,225 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   Future<void> _handleRegistration() async {
+    final userId = _authService.currentUser?.uid;
+    if (userId == null) {
+      _showLoginRequiredDialog();
+      return;
+    }
+
     try {
-      if (_isRegistered) {
-        // Show unregister confirmation
-        final confirm = await _showUnregisterConfirmation();
-        if (confirm) {
-          await _databaseService.unregisterFromEvent(
-            widget.event.id,
-            'currentUserId', // Replace with actual current user ID
-          );
-          setState(() {
-            _isRegistered = false;
-          });
-        }
-      } else {
-        await _databaseService.registerForEvent(
-          widget.event.id,
-          'currentUserId', // Replace with actual current user ID
-        );
-        setState(() {
-          _isRegistered = true;
-        });
+      // Check registration status
+      final registrationStatus = await _checkEventRegistrationEligibility(userId);
+
+      switch (registrationStatus) {
+        case RegistrationStatus.available:
+          await _performEventRegistration(userId);
+          break;
+        case RegistrationStatus.full:
+          _showWaitlistDialog();
+          break;
+        case RegistrationStatus.memberOnly:
+          _showMemberOnlyDialog();
+          break;
+        case RegistrationStatus.alreadyRegistered:
+          _showAlreadyRegisteredDialog();
+          break;
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _handleRegistrationError(e);
     }
   }
+
+  void _handleRegistrationError(dynamic error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Registration failed: ${error.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showAlreadyRegisteredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Already Registered'),
+        content: Text('You are already registered for ${widget.event.title}.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWaitlistDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Event Full'),
+        content: Text('${widget.event.title} is currently full. Would you like to join the waitlist?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _joinWaitlist();
+            },
+            child: const Text('Join Waitlist'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _joinWaitlist() async {
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) return;
+
+      await _databaseService.addToWaitlist(widget.event.id, userId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added to waitlist for ${widget.event.title}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      _handleRegistrationError(e);
+    }
+  }
+
+
+  void _showMemberOnlyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Members Only Event'),
+        content: Text('${widget.event.title} is only available to ACC members.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to membership information or upgrade page
+              // Navigator.pushNamed(context, '/membership');
+            },
+            child: const Text('Learn About Membership'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> _performEventRegistration(String userId) async {
+    if (_isRegistered) {
+      // Show unregister confirmation
+      final confirm = await _showUnregisterConfirmation();
+      if (confirm) {
+        await _databaseService.unregisterFromEvent(
+          widget.event.id,
+          userId,
+        );
+        setState(() {
+          _isRegistered = false;
+        });
+      }
+    } else {
+      final result = await _databaseService.registerForEvent(
+        widget.event.id,
+        userId,
+      );
+
+      setState(() {
+        _isRegistered = true;
+      });
+
+      // Show registration confirmation
+      _showRegistrationConfirmation(result);
+    }
+  }
+
+  void _showRegistrationConfirmation(String result) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result == 'confirmed'
+            ? 'Successfully registered for the event!'
+            : 'You have been added to the waitlist.'),
+        backgroundColor: result == 'confirmed' ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
+
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Required'),
+        content: const Text('Please log in to register for events.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to login screen
+              // Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Future<RegistrationStatus> _checkEventRegistrationEligibility(String userId) async {
+    // Check if already registered
+    final registrationCheck = await _databaseService.checkEventRegistrationStatus(
+      widget.event.id,
+      userId,
+    );
+    if (registrationCheck['isRegistered'] == true) {
+      return RegistrationStatus.alreadyRegistered;
+    }
+
+    // Check if event is members only
+    if (widget.event.isAccMembersOnly) {
+      final isMember = await _checkMemberStatus(userId);
+      if (!isMember) {
+        return RegistrationStatus.memberOnly;
+      }
+    }
+
+    // Check event capacity
+    final currentRegistrations = await _databaseService.getCurrentRegistrationsCount(widget.event.id);
+    if (currentRegistrations >= widget.event.maxParticipants) {
+      return RegistrationStatus.full;
+    }
+
+    return RegistrationStatus.available;
+  }
+
+  Future<bool> _checkMemberStatus(String userId) async {
+    // Implement logic to check if user is a member
+    return await _databaseService.checkMemberStatus(userId);
+  }
+
 
   Future<bool> _showUnregisterConfirmation() async {
     return await showDialog<bool>(
@@ -502,6 +697,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
       ),
     ).animate()
         .fadeIn(duration: 300.ms)
-        .scaleXY(begin: 0.9, end: 1.0); // Use scaleXY instead of scale
+        .scaleXY(begin: 0.9, end: 1.0);
   }
 }
