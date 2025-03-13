@@ -61,7 +61,7 @@ dependencies:
   fl_chart:
   flutter_slidable:
   animations:
-
+  webview_flutter:
 
 dev_dependencies:
   flutter_test:

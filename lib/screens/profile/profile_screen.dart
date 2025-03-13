@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
   import '../profile/edit_profile_screen.dart';
   import '../settings/notification_settings_screen.dart';
   import '../settings/settings_screen.dart';
+import 'membership_screen.dart';
   
   class ProfileScreen extends StatefulWidget {
     const ProfileScreen({super.key});
@@ -417,10 +418,9 @@ import 'package:flutter/material.dart';
         _showErrorSnackBar('Failed to update profile picture: $e');
       }
     }
-  
+
     Future<void> _manageMembership() async {
       try {
-        // Navigate to membership management screen
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -489,18 +489,5 @@ import 'package:flutter/material.dart';
       _authSubscription?.cancel();
       _userSubscription?.cancel();
       super.dispose();
-    }
-  }
-  
-  // Add these screens in separate files
-  class MembershipScreen extends StatelessWidget {
-    const MembershipScreen({super.key});
-  
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Membership')),
-        body: const Center(child: Text('Membership Management Screen')),
-      );
     }
   }
