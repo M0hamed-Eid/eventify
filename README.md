@@ -1,16 +1,23 @@
-# eventify
+# Eventify
 
-A new Flutter project.
+Eventify is a Flutter-based event management application designed to help users organize, manage, and participate in events and workshops. It includes features like event creation, user management, notifications, and more.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- **User Authentication**: Secure login and signup using Firebase Authentication.
+- **Event Management**: Create, update, and manage events and workshops.
+- **Notifications**: Send and receive notifications for event updates.
+- **Calendar Integration**: View events in a calendar layout.
+- **Admin Dashboard**: Manage users, events, and analytics.
+- **Multi-language Support**: Supports multiple languages for a global audience.
+- **Theme Customization**: Light and dark theme support.
 
-A few resources to get you started if this is your first Flutter project:
+## Technical Stack
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Frontend:**: Flutter (Dart)
+- **Backend:**: Firebase (Firestore, Authentication, Cloud Messaging) and Supabase (PostgreSQL, Authentication, Storage)
+- **State Management:**: Provider
+- **Routing**: Flutter Navigator with custom route transitions
+- **Localization**: Flutter Localization
+- **Dependency Injection**: Manual dependency injection (via constructors)
+- **Testing**: Widget tests and unit tests
