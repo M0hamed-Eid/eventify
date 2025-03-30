@@ -531,7 +531,7 @@ class DatabaseService {
     }
   }
 
-  Future<void> ensureUserProfileExists(String userId, Map<String, dynamic> initialData) async {
+/*  Future<void> ensureUserProfileExists(String userId, Map<String, dynamic> initialData) async {
     try {
       final doc = await _firestore
           .collection('profiles')
@@ -546,7 +546,7 @@ class DatabaseService {
       _logger.e('Error ensuring user profile exists for userId: $userId: $e');
       throw 'Error ensuring user profile exists for userId: $userId: $e';
     }
-  }
+  }*/
 
   Future<void> createUserProfile(String userId, Map<String, dynamic> data) async {
     try {
@@ -598,8 +598,7 @@ class DatabaseService {
     }
   }
 
-  // Get saved events for a user
-  Future<List<Event>> getSavedEvents(String userId) async {
+ /* Future<List<Event>> getSavedEvents(String userId) async {
     try {
       // Get the user profile to retrieve saved event IDs
       final userDoc = await _firestore.collection('profiles').doc(userId).get();
@@ -630,10 +629,9 @@ class DatabaseService {
       _logger.e('Error fetching saved events: $e');
       throw 'Failed to fetch saved events: $e';
     }
-  }
+  }*/
 
-  // Stream version of saved events for real-time updates
-  Stream<List<Event>> getSavedEventsStream(String userId) {
+/*  Stream<List<Event>> getSavedEventsStream(String userId) {
     return _firestore
         .collection('profiles')
         .doc(userId)
@@ -662,7 +660,7 @@ class DatabaseService {
           .map((doc) => Event.fromFirestore(doc))
           .toList();
     });
-  }
+  }*/
 
   // Check if an event is saved by the user
   Future<bool> isEventSaved(String userId, String eventId) async {
@@ -682,8 +680,7 @@ class DatabaseService {
     }
   }
 
-  // Helper method to delete profile picture
-  Future<void> deleteProfilePicture(String userId, String fileName) async {
+/*  Future<void> deleteProfilePicture(String userId, String fileName) async {
     try {
       await _supabase.storage
           .from('avatars')
@@ -692,7 +689,7 @@ class DatabaseService {
       _logger.e('Error deleting profile picture: $e');
       throw 'Error deleting profile picture: $e';
     }
-  }
+  }*/
 
   Future<Event> createEvent(Event event) async {
   try {
@@ -897,14 +894,13 @@ class DatabaseService {
     });
   }
 
-  // Contact Messages
-  Future<void> submitContactMessage(Map<String, dynamic> messageData) async {
+/*  Future<void> submitContactMessage(Map<String, dynamic> messageData) async {
     await _firestore.collection('contactMessages').add({
       ...messageData,
       'createdAt': FieldValue.serverTimestamp(),
       'status': 'new',
     });
-  }
+  }*/
 
 /*
   Stream<List<String>> getCategories() {
@@ -915,14 +911,14 @@ class DatabaseService {
   }
 */
 
-  // Get categories as a stream
+/*
   Stream<List<String>> getCategoriesStream() {
     return _firestore
         .collection('categories')
         .snapshots()
         .map((snapshot) =>
         snapshot.docs.map((doc) => doc['name'] as String).toList());
-  }
+  }*/
 
 
 
@@ -994,11 +990,11 @@ class DatabaseService {
     await batch.commit();
   }
 
-  Future<void> toggleNotificationRead(String notificationId) async {
+/*  Future<void> toggleNotificationRead(String notificationId) async {
     final doc = await _firestore.collection('notifications').doc(notificationId).get();
     final currentState = doc.data()?['isRead'] ?? false;
     await doc.reference.update({'isRead': !currentState});
-  }
+  }*/
 
   Future<void> deleteNotification(String notificationId) async {
     await _firestore.collection('notifications').doc(notificationId).delete();
@@ -1137,7 +1133,7 @@ class DatabaseService {
     }
   }
 
-  Future<void> updateWorkshop(String workshopId, Map<String, dynamic> data) async {
+/*  Future<void> updateWorkshop(String workshopId, Map<String, dynamic> data) async {
     try {
       await _firestore.collection('workshops').doc(workshopId).update({
         ...data,
@@ -1147,7 +1143,7 @@ class DatabaseService {
       _logger.e('Error updating workshop: $e');
       throw 'Error updating workshop: $e';
     }
-  }
+  }*/
 
   Future<void> deleteWorkshop(String workshopId) async {
     try {
