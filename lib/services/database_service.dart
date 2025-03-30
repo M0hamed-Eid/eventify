@@ -1158,7 +1158,7 @@ class DatabaseService {
     }
   }
 
-  Future<Workshop?> getWorkshop(String workshopId) async {
+  /*Future<Workshop?> getWorkshop(String workshopId) async {
     try {
       final doc = await _firestore.collection('workshops').doc(workshopId).get();
       return doc.exists ? Workshop.fromFirestore(doc) : null;
@@ -1166,7 +1166,7 @@ class DatabaseService {
       _logger.e('Error fetching workshop: $e');
       throw 'Error fetching workshop: $e';
     }
-  }
+  }*/
 
   String _createWorkshopNotificationMessage(Workshop workshop) {
     final dateFormat = DateFormat('EEEE, MMMM d');

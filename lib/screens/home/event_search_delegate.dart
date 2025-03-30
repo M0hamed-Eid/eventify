@@ -17,7 +17,7 @@ class EventSearchDelegate extends SearchDelegate {
         onPressed: () {
           query = '';
         },
-      ),
+      ),  
     ];
   }
 
