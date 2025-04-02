@@ -1025,7 +1025,7 @@ class DatabaseService {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final startOfTomorrow = DateTime(
         tomorrow.year, tomorrow.month, tomorrow.day);
-
+    try {
     return _firestore
         .collection('events')
         .where('dateTime', isGreaterThanOrEqualTo: startOfTomorrow)
@@ -1034,6 +1034,10 @@ class DatabaseService {
         .snapshots()
         .map((snapshot) =>
         snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList());
+    } catch (e) {
+      // Return an empty list in case of error
+      return Stream.value([]);
+    }
   }
 
   Stream<List<Workshop>> getWorkshops() {

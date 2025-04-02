@@ -98,8 +98,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return StreamBuilder<List<Event>>(
       stream: _databaseService.getUpcomingEvents(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return _buildCarouselPlaceholder();
+        if (snapshot.hasError) {
+          return _buildErrorCarousel();
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildEmptyCarousel();
         }
 
         final featuredEvents = snapshot.data!;
@@ -118,6 +122,95 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyCarousel() {
+    return Container(
+      height: 250,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.blue[100]!,
+            Colors.blue[50]!,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 50,
+            color: Colors.blue[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Upcoming Events',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[900],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later for new events',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.blue[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCarousel() {
+    return Container(
+      height: 250,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.grey[300]!,
+            Colors.grey[400]!,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 50,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Error loading events',
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -373,59 +466,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildMainContent() {
-    return Column(
-      children: [
-        _buildQuickActionSection(),
-        _buildTabBar(),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildEventsTab(),
-              _buildWorkshopsTab(),
-              _buildMembershipTab(),
-            ],
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildTabBar(),
+          SizedBox(
+            height: MediaQuery.of(context).size.height - 200, // Adjust this value as needed
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEventsTab(),
+                _buildWorkshopsTab(),
+                _buildMembershipTab(),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-
-  Widget _buildQuickActionSection() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildQuickActionButton(
-              icon: Icons.event,
-              label: 'My Events',
-              onTap: () {
-                // Navigate to my events
-              },
-            ),
-            _buildQuickActionButton(
-              icon: Icons.bookmark,
-              label: 'Saved',
-              onTap: () {
-                // Navigate to saved events
-              },
-            ),
-            _buildQuickActionButton(
-              icon: Icons.workspace_premium,
-              label: 'Workshops',
-              onTap: () {
-                // Switch to workshops tab
-                _tabController.animateTo(1);
-              },
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
+
 
   Widget _buildTabBar() {
     return TabBar(
@@ -572,64 +632,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-    );
-  }
-
-
-
-
-  Widget _buildQuickActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildQuickActionButton(
-              icon: Icons.event,
-              label: 'My Events',
-              onTap: () {
-                // Navigate to user's registered events
-              },
-            ),
-            const SizedBox(width: 10),
-            _buildQuickActionButton(
-              icon: Icons.bookmark,
-              label: 'Saved',
-              onTap: () {
-                // Navigate to saved events
-              },
-            ),
-            const SizedBox(width: 10),
-            _buildQuickActionButton(
-              icon: Icons.workspace_premium,
-              label: 'Workshops',
-              onTap: () {
-                // Scroll to workshops section
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return ElevatedButton.icon(
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue[700],
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-      onPressed: onTap,
     );
   }
 
