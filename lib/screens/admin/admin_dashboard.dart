@@ -179,15 +179,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('Total Events', _totalEvents.toString(), Icons.event),
-          _buildStatItem('Total Users', _totalUsers.toString(), Icons.people),
-          _buildStatItem('Upcoming Events', _upcomingEvents.toString(), Icons.calendar_today),
-          _buildStatItem('Total Workshops', _totalWorkshops.toString(), Icons.workspaces),
-          _buildStatItem('Upcoming Workshops', _upcomingWorkshops.toString(), Icons.workspaces_outlined),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _buildStatItem('Total Events', _totalEvents.toString(), Icons.event),
+              const SizedBox(width: 24),
+              _buildStatItem('Total Users', _totalUsers.toString(), Icons.people),
+              const SizedBox(width: 24),
+              _buildStatItem('Upcoming Events', _upcomingEvents.toString(), Icons.calendar_today),
+              const SizedBox(width: 24),
+              _buildStatItem('Total Workshops', _totalWorkshops.toString(), Icons.workspaces),
+              const SizedBox(width: 24),
+              _buildStatItem('Upcoming Workshops', _upcomingWorkshops.toString(), Icons.workspaces_outlined),
+            ],
+          ),
+        ),
       ),
     );
   }
