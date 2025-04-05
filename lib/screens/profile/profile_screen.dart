@@ -9,7 +9,8 @@ import 'package:flutter/material.dart';
   import '../../models/user_profile.dart';
   import '../../services/database_service.dart';
   import '../../services/auth_service.dart';
-  import '../event_details/event_details_screen.dart';
+  import '../contact/contact_screen.dart';
+import '../event_details/event_details_screen.dart';
   import '../help/help_screen.dart';
   import '../profile/edit_profile_screen.dart';
   import '../settings/notification_settings_screen.dart';
@@ -108,21 +109,52 @@ import 'membership_screen.dart';
         }
       }
     }
-  
+
+
     void _showErrorSnackBar(String message) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text(message)),
+            ],
+          ),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'DISMISS',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     }
-  
+    Widget _buildLoadingIndicator() {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading profile...'),
+          ],
+        ),
+      );
+    }
+
     @override
     Widget build(BuildContext context) {
+
       if (_isLoading) {
-        return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+        return Scaffold(
+          appBar: AppBar(title: const Text('Profile')),
+          body: _buildLoadingIndicator(),
         );
       }
 
@@ -177,23 +209,33 @@ import 'membership_screen.dart';
         ),
       );
     }
-  
+
+
+
     Widget _buildProfileHeader() {
       return Container(
         padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: const EdgeInsets.all(16),
         child: Column(
           children: [
             Stack(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: _user?.photoURL != null
-                      ? NetworkImage(_user!.photoURL!)
-                      : null,
-                  child: _user?.photoURL == null
-                      ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                      : null,
+                Hero(
+                  tag: 'profile_${_user?.uid ?? ""}',
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: _user?.photoURL != null
+                        ? NetworkImage(_user!.photoURL!)
+                        : null,
+                    child: _user?.photoURL == null
+                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                        : null,
+                  ),
                 ),
                 Positioned(
                   bottom: 0,
@@ -218,6 +260,7 @@ import 'membership_screen.dart';
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               _user?.email ?? '',
               style: TextStyle(
@@ -225,8 +268,49 @@ import 'membership_screen.dart';
                 color: Colors.grey[600],
               ),
             ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildStatistic('Saved Events', _user?.savedEvents.length ?? 0),
+                const SizedBox(width: 24),
+                _buildStatistic('Membership',
+                    _user?.membershipStatus ?? 'Non-Member',
+                    isText: true
+                ),
+              ],
+            ),
           ],
         ),
+      );
+    }
+
+    Widget _buildStatistic(String label, dynamic value, {bool isText = false}) {
+      return Column(
+        children: [
+          isText
+              ? Text(
+            value.toString(),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          )
+              : Text(
+            value.toString(),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       );
     }
   
@@ -356,7 +440,7 @@ import 'membership_screen.dart';
         _showErrorSnackBar('Failed to remove event: $e');
       }
     }
-  
+
     Widget _buildActionButtons() {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -373,18 +457,53 @@ import 'membership_screen.dart';
               onTap: () => _navigateToNotificationSettings(context),
             ),
             ListTile(
+              leading: const Icon(Icons.contact_support),
+              title: const Text('Contact Us'),
+              onTap: () => _navigateToContact(context),
+            ),
+            ListTile(
               leading: const Icon(Icons.help),
               title: const Text('Help & Support'),
               onTap: () => _navigateToHelp(context),
             ),
+            const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
-              onTap: _signOut,
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Sign Out',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: _showSignOutDialog,
             ),
           ],
         ),
       );
+    }
+
+    Future<void> _showSignOutDialog() async {
+      final shouldSignOut = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('SIGN OUT'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldSignOut == true) {
+        await _signOut();
+      }
     }
   
     Future<void> _signOut() async {
@@ -462,6 +581,15 @@ import 'membership_screen.dart';
         context,
         MaterialPageRoute(
           builder: (context) => const NotificationSettingsScreen(),
+        ),
+      );
+    }
+
+    void _navigateToContact(BuildContext context) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ContactScreen(),
         ),
       );
     }
