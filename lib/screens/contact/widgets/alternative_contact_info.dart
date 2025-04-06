@@ -50,7 +50,6 @@ class _ContactMethod extends StatelessWidget {
   final String detail;
 
   const _ContactMethod({
-    super.key,
     required this.icon,
     required this.title,
     required this.detail,

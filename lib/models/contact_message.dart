@@ -27,7 +27,7 @@ class ContactMessage {
     this.updatedAt,
     this.assignedTo,
     this.response,
-  }) : this.createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   factory ContactMessage.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -77,15 +77,15 @@ class ContactMessage {
     String? response,
   }) {
     return ContactMessage(
-      id: this.id,
-      userId: this.userId,
+      id: id,
+      userId: userId,
       name: name ?? this.name,
       email: email ?? this.email,
       inquiryType: inquiryType ?? this.inquiryType,
       subject: subject ?? this.subject,
       message: message ?? this.message,
       status: status ?? this.status,
-      createdAt: this.createdAt,
+      createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       assignedTo: assignedTo ?? this.assignedTo,
       response: response ?? this.response,

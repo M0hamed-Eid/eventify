@@ -1,10 +1,5 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../models/contact_message.dart';
-import '../models/event.dart';
-import '../models/notification_item.dart';
-import '../models/user_profile.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

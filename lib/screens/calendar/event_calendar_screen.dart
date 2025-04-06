@@ -22,7 +22,7 @@ class _EventCalendarScreenState extends State<EventCalendarScreen>
   final DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  bool _isCalendarView = true;
+  final bool _isCalendarView = true;
 
   // New UI-related variables
   late AnimationController _animationController;

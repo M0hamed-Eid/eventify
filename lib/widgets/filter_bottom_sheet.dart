@@ -4,9 +4,9 @@ class FilterBottomSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onApplyFilters;
 
   const FilterBottomSheet({
-    Key? key,
+    super.key,
     required this.onApplyFilters,
-  }) : super(key: key);
+  });
 
   @override
   State<FilterBottomSheet> createState() => _FilterBottomSheetState();

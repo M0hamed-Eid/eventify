@@ -6,10 +6,10 @@ class EventDetailsBottomSheet extends StatelessWidget {
   final VoidCallback onRegister;
 
   const EventDetailsBottomSheet({
-    Key? key,
+    super.key,
     required this.event,
     required this.onRegister,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

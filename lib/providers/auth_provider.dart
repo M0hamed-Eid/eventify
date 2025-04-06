@@ -49,7 +49,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoggedIn = false;
       notifyListeners();
-      throw e;
+      rethrow;
     }
   }
 
@@ -65,7 +65,7 @@ class AuthProvider with ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      throw e;
+      rethrow;
     }
   }
 }

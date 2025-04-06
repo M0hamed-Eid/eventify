@@ -117,12 +117,12 @@ class _AddEventScreenState extends State<AddEventScreen> {
 
   // New controllers and variables
   final _minimumAgeController = TextEditingController();
-  List<String> _entryGuidelines = [
+  final List<String> _entryGuidelines = [
     'Bring a valid national identity card, passport, or driver\'s license',
     'Arrive at least 1 hour before the program start time',
     'Clear security checkpoint',
   ];
-  List<String> _securityRestrictions = [
+  final List<String> _securityRestrictions = [
     'No electronics allowed',
     'Only mobile phones can be checked at the gate',
     'No lighters, sharp objects, or large bags',

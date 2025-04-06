@@ -2,7 +2,6 @@ import 'package:eventify/providers/auth_provider.dart';
 import 'package:eventify/providers/language_provider.dart';
 import 'package:eventify/providers/theme_provider.dart';
 import 'package:eventify/screens/auth/auth_wrapper.dart';
-import 'package:eventify/screens/main/main_screen.dart';
 import 'package:eventify/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/env.dart';
 import 'config/routes.dart';
-import 'config/theme.dart';
 import 'firebase_options.dart';
 import 'providers/database_provider.dart';
 

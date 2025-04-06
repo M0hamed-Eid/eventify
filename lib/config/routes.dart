@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
-import '../screens/admin/admin_dashboard.dart';
 import '../screens/auth/auth_wrapper.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
-import '../screens/calendar/event_calendar_screen.dart';
-import '../screens/home/home_screen.dart';
 import '../screens/main/main_screen.dart';
-import '../screens/profile/profile_screen.dart';
-import '../services/auth_service.dart';
 import '../utils/route_transition.dart';
 
 class AppRoutes {
