@@ -152,8 +152,11 @@ Create a `.env` file in the root directory:
 
 Here’s a quick preview of the Admin Dashboard functionality:
 
-[![Admin Dashboard Video](assets/admin_preview_thumbnail.png)](https://github.com/M0hamed-Eid/eventify/blob/master/assets/admin.mp4)
-
+<p align="center">
+  <a href="https://youtu.be/QKAHN5arX1Y">
+    <img src="assets/admin_preview_thumbnail.png" alt="Watch the demo" width="600"/>
+  </a>
+</p>
 ---
 
 ## 🛎️ User Notifications
