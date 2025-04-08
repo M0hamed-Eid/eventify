@@ -147,3 +147,18 @@ The project follows Clean Architecture principles with three main layers:
 
 ### Environment Variables
 Create a `.env` file in the root directory:
+
+## 🎥 Admin Dashboard Preview
+
+Here’s a quick preview of the Admin Dashboard functionality:
+
+[![Admin Dashboard Video](assets/admin_preview_thumbnail.png)](https://github.com/yourusername/eventify/assets/admin.mp4)
+
+---
+
+## 🛎️ User Notifications
+
+Whenever a new event is created, a notification is automatically sent to all users.  
+Admins can also create and send **custom notifications** from the dashboard.
+
+![Notification Example](assets/notification.jpg)
