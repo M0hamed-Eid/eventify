@@ -152,7 +152,7 @@ Create a `.env` file in the root directory:
 
 Here’s a quick preview of the Admin Dashboard functionality:
 
-[![Admin Dashboard Video](assets/admin_preview_thumbnail.png)](https://github.com/yourusername/eventify/assets/admin.mp4)
+[![Admin Dashboard Video](assets/admin_preview_thumbnail.png)](https://github.com/M0hamed-Eid/eventify/blob/master/assets/admin.mp4)
 
 ---
 
